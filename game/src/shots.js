@@ -1,79 +1,64 @@
-// The screenshot scenes behind ?shot=start|play|end. Each one plays the real rules forward from a
-// fresh world for a fixed number of steps, steered by a simple autopilot (look ahead each way the
-// paddle could move, keep clear of blocks, chase the lowest coin when that is safe), so the frame
-// is what a short game really looks like and the same seed always gives the same frame.
-import { FIELD, PLAYER, STEP } from './config.js';
-import { EVENT_OVER, KIND_BLOCK } from './world.js';
-import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+import { addInterceptor } from './ai/policeAI.js';
+import { spawnVehicle, syncVehicle } from './vehicles/vehiclePhysics.js';
+import { enterVehicle } from './player/playerController.js';
+import { animateCharacter } from './player/characterModel.js';
+import { PLACES } from './world/cityLayout.js';
+import { NEUTRAL } from './world/simulation.js';
 
-const START_SECONDS = 5;
-const PLAY_SECONDS = 26;
-const END_LIMIT_SECONDS = 600;
-/**
- * How far ahead, in seconds, the autopilot checks each way it could move: the play scene's pilot
- * looks well ahead and keeps all its lives; the end scene's looks only a moment ahead, so it is
- * caught out once the blocks speed up, as a hurried player is.
- */
-const HORIZON_PLAY = 0.7;
-const HORIZON_END = 0.25;
-const SAMPLE = 1 / 30;
-const DIRECTIONS = [0, -1, 1];
-/** Extra room, each side, it keeps between the paddle and a block. */
-const MARGIN = 10;
+const step = 1 / 60;
 
-/** Seconds until moving in `direction` (-1, 0, 1) runs the paddle into a block; Infinity when it never does. */
-function timeToHit(state, direction, horizon) {
-  const player = state.player;
-  for (let t = SAMPLE; t <= horizon; t += SAMPLE) {
-    const x = Math.min(FIELD.width - player.width, Math.max(0, player.x + direction * PLAYER.speed * t));
-    for (let index = 0; index < state.items.length; index += 1) {
-      const item = state.items[index];
-      if (!item.active || item.kind !== KIND_BLOCK) continue;
-      const y = item.y + item.speed * t;
-      if (y + item.height > player.y && y < player.y + player.height && item.x < x + player.width + MARGIN && item.x + item.width > x - MARGIN) return t;
-    }
-  }
-  return Infinity;
+function advance(game, seconds, controls = NEUTRAL) {
+  for (let t = 0; t < seconds; t += step) game.simulate(controls, step);
 }
 
-/** Of the safe ways to move, the one toward the lowest coin (or the centre); else the one that is hit last. */
-function autopilot(state, horizon) {
-  const player = state.player;
-  let coin = null;
-  for (let index = 0; index < state.items.length; index += 1) {
-    const item = state.items[index];
-    if (item.active && item.kind !== KIND_BLOCK && (coin === null || item.y > coin.y)) coin = item;
-  }
-  const target = coin === null ? FIELD.width / 2 : coin.x + coin.width / 2;
-  const centre = player.x + player.width / 2;
-  const wanted = target > centre + 8 ? 1 : target < centre - 8 ? -1 : 0;
-  let best = wanted;
-  let bestTime = timeToHit(state, wanted, horizon);
-  for (let index = 0; index < DIRECTIONS.length && bestTime !== Infinity; index += 1) {
-    const time = timeToHit(state, DIRECTIONS[index], horizon);
-    if (time > bestTime) {
-      bestTime = time;
-      best = DIRECTIONS[index];
-    }
-  }
-  return best;
+function beginJob(game, chapter, anchor) {
+  game.missions.setChapter(chapter);
+  Object.assign(game.player, { x: anchor.x - 2.1, z: anchor.z + 3.3, heading: 0 });
+  game.interact();
 }
 
-/**
- * Set `world` to the named scene (start, play or end; any other name is start) and return the
- * screen to draw over it and the best score to show.
- */
-export function stageShot(name, world) {
-  world.reset();
-  if (name !== 'play' && name !== 'end') {
-    for (let index = 0; index < START_SECONDS / STEP; index += 1) world.step(STEP, 0, true);
-    return { screen: SCREEN_TITLE, best: 0 };
+export function prepareShot(game, name) {
+  if (name === 'menu') return;
+  game.reset(null);
+  game.menus.show('play');
+  if (name === 'chase') {
+    beginJob(game, 0, PLACES.garage);
+    const car = game.cars[0];
+    enterVehicle(game, car, false);
+    advance(game, 1.3, { ...NEUTRAL, throttle: 1 });
+    const { z } = game.player;
+    const pursuer = addInterceptor(game, .35, z + 3.1, .16);
+    pursuer.speed = car.speed * .95;
+    const roadblock = addInterceptor(game, -3.1, z - 14, Math.PI * .94);
+    roadblock.speed = 4;
+    const oncoming = spawnVehicle(game.scene, 'taxi', '#e9b354', -4.7, z - 26, Math.PI, 'parked');
+    game.cars.push(oncoming);
+    game.cars.push(spawnVehicle(game.scene, 'van', '#85a8a8', 5.9, z - 38, 0, 'parked'));
+    game.player.onCrime(.87);
+    game.notice = null;
+    game.dialogue = null;
+    game.player.health = 91;
+    game.player.money = 460;
+    car.speed = 20.5;
+    game.police.cooldown = 4;
+    advance(game, .19, { ...NEUTRAL, throttle: 1, steer: -.25, brake: true });
+    for (const unit of game.police.units) syncVehicle(unit, game.clock);
   }
-  const limit = name === 'end' ? END_LIMIT_SECONDS : PLAY_SECONDS;
-  const horizon = name === 'end' ? HORIZON_END : HORIZON_PLAY;
-  for (let index = 0; index < limit / STEP; index += 1) {
-    if (world.step(STEP, autopilot(world.state, horizon), false) & EVENT_OVER) break;
+  if (name === 'street') {
+    beginJob(game, 0, PLACES.garage);
+    const car = game.cars[0];
+    Object.assign(game.player, { x: car.x - 1.95, z: car.z + 1.72, heading: -.13 });
+    game.interact();
+    advance(game, .22);
+    game.player.heading = -.17;
+    game.notice = null;
   }
-  const over = world.state.lives === 0;
-  return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
+  if (name === 'mission') {
+    beginJob(game, 1, PLACES.strand);
+    Object.assign(game.player, { x: 171.2, z: -4.25, heading: .53, money: 460 });
+    game.timeOfDay = 1010;
+    advance(game, .56);
+  }
+  if (!game.player.car) animateCharacter(game.player, game.clock, name === 'street' ? 1.2 : 0, 0);
+  game.camera.update(game.player, NEUTRAL, 0, true);
 }

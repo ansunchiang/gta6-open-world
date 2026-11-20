@@ -1,134 +1,102 @@
-// Boot and the one loop: input is read every frame, the world advances in fixed 1/60 s steps
-// (several in a slow frame, none in a fast one), and the renderer paints what is there. The game
-// moves between four screens: title, play, paused and game over.
-//
-// ?seed=N fixes the falling pattern. ?shot=start|play|end (with &seed=N) stages that scene
-// instead of running the loop, paints it twice and sets window.__shotReady for a screenshot.
-import { BEST_KEY, LIVES, STEP } from './config.js';
-import { createRandom } from './random.js';
-import { createWorld, EVENT_HIT, EVENT_OVER } from './world.js';
-import { ACTION_CONFIRM, ACTION_PAUSE, createInput } from './input.js';
-import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
-import { stageShot } from './shots.js';
+import * as T from '../vendor/three.module.min.js';
+import { createInput } from './player/input.js';
+import { createSimulation, NEUTRAL } from './world/simulation.js';
+import { createHud } from './ui/hud.js';
+import { createMenus } from './ui/menus.js';
+import { prepareShot } from './shots.js';
 
-/** The longest frame the loop catches up on; a longer stall (a hidden tab) is dropped, not replayed. */
-const MAX_FRAME = 0.25;
+const FIXED_STEP = 1 / 60;
+const SHOTS = new Set(['chase', 'street', 'mission', 'menu']);
 
-const params = new URLSearchParams(window.location.search);
-const shot = params.get('shot');
-const seedParam = Number.parseInt(params.get('seed') ?? '', 10);
-const seed = Number.isInteger(seedParam) ? seedParam : Math.floor(Math.random() * 4294967296);
-
-const canvas = document.getElementById('game');
-const status = document.getElementById('status');
-const world = createWorld(createRandom(seed));
-const renderer = createRenderer(canvas);
-
-function readBest() {
+function boot() {
+  const canvas = document.getElementById('view');
+  let renderer;
   try {
-    return Number.parseInt(window.localStorage.getItem(BEST_KEY) ?? '0', 10) || 0;
+    renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   } catch {
-    return 0;
+    document.getElementById('title').hidden = true;
+    document.getElementById('overlay').hidden = false;
+    document.getElementById('pause-actions').hidden = true;
+    document.getElementById('error-panel').hidden = false;
+    document.getElementById('overlay-title').textContent = 'Graphics unavailable';
+    return;
   }
-}
 
-function saveBest(value) {
-  try {
-    window.localStorage.setItem(BEST_KEY, String(value));
-  } catch {
-    // Storage can be off (private windows): the best score then lasts this visit only.
-  }
-}
-
-function runShot(name) {
-  const scene = stageShot(name, world);
-  let painted = 0;
-  function paint() {
-    renderer.draw(world.state, scene.screen, scene.best);
-    painted += 1;
-    if (painted < 2) requestAnimationFrame(paint);
-    else window.__shotReady = true;
-  }
-  requestAnimationFrame(paint);
-}
-
-function runGame() {
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T.PCFShadowMap;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.13;
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera(64, 1, .16, 1600);
   const input = createInput(canvas);
-  let screen = SCREEN_TITLE;
-  let best = readBest();
+  const params = new URLSearchParams(location.search);
+  const shot = SHOTS.has(params.get('shot')) ? params.get('shot') : null;
+  const seed = Number(params.get('seed')) || 2601;
+  const game = createSimulation(scene, camera, seed, input, !!shot);
+  const hud = createHud();
+  game.menus = createMenus(game);
+  game.menus.show('title');
+  if (shot) prepareShot(game, shot);
+
+  function resize() {
+    renderer.setPixelRatio(Math.min(1.5, devicePixelRatio, 1920 / innerWidth));
+    renderer.setSize(innerWidth, innerHeight, false);
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && game.menus.mode === 'play' && !frozen) game.menus.togglePause();
+  });
+
+  let frozen = !!shot;
   let accumulator = 0;
   let last = performance.now();
-
-  // Screen readers (and anyone watching the page's text) hear the screen changes and each hit.
-  function announce(message) {
-    status.textContent = message;
-  }
-
-  function startGame() {
-    world.reset();
-    accumulator = 0;
-    screen = SCREEN_PLAY;
-    announce(`Playing. ${LIVES} lives.`);
-  }
-
-  function endGame() {
-    screen = SCREEN_OVER;
-    if (world.state.score > best) {
-      best = world.state.score;
-      saveBest(best);
-    }
-    announce(`Game over. Score ${world.state.score}. Best ${best}.`);
-  }
-
-  function handleActions() {
-    const actions = input.takeActions();
-    if (actions & ACTION_CONFIRM && (screen === SCREEN_TITLE || screen === SCREEN_OVER)) startGame();
-    else if (actions & ACTION_PAUSE && screen === SCREEN_PLAY) {
-      screen = SCREEN_PAUSED;
-      announce('Paused.');
-    } else if (actions & (ACTION_PAUSE | ACTION_CONFIRM) && screen === SCREEN_PAUSED) {
-      screen = SCREEN_PLAY;
-      announce('Playing.');
-    }
-  }
-
-  function step() {
-    if (screen === SCREEN_TITLE) {
-      world.step(STEP, 0, true);
-      return;
-    }
-    const events = world.step(STEP, input.direction(), false);
-    if (events & EVENT_OVER) endGame();
-    else if (events & EVENT_HIT) announce(world.state.lives === 1 ? 'Hit. 1 life left.' : `Hit. ${world.state.lives} lives left.`);
-  }
-
+  let queued = new Set();
+  let frames = 0;
   function frame(now) {
     requestAnimationFrame(frame);
-    accumulator += Math.min((now - last) / 1000, MAX_FRAME);
+    const dt = Math.min(.08, (now - last) / 1000);
     last = now;
-    handleActions();
-    if (screen === SCREEN_TITLE || screen === SCREEN_PLAY) {
-      while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY)) {
-        step();
-        accumulator -= STEP;
+    if (input.take('Escape') || input.take('KeyP')) game.menus.togglePause();
+    if (input.take('KeyM')) game.menus.toggleMap();
+    if (input.take('Enter')) {
+      if (game.menus.mode === 'title') game.start(!document.getElementById('continue').hidden);
+      else if (game.menus.mode === 'busted') game.retry();
+      else if (game.menus.mode === 'pause') game.menus.togglePause();
+    }
+    const controls = input.poll();
+    if (frozen && (controls.presses.size || controls.attack || controls.aim || controls.throttle || controls.steer || game.menus.mode === 'play' && shot === 'menu')) {
+      frozen = false;
+      if (game.menus.mode === 'play') game.audio.start();
+    }
+    for (const key of controls.presses) queued.add(key);
+    controls.presses = queued;
+    const active = game.menus.mode === 'play';
+    const title = game.menus.mode === 'title' || game.menus.mode === 'help' && !document.getElementById('title').hidden;
+    if (active && !frozen) {
+      accumulator += dt;
+      while (accumulator >= FIXED_STEP && game.menus.mode === 'play') {
+        game.simulate(controls, FIXED_STEP);
+        queued.clear();
+        accumulator -= FIXED_STEP;
       }
     } else {
       accumulator = 0;
+      queued = new Set();
+      if (title && !frozen) game.idle(dt);
     }
-    renderer.draw(world.state, screen, best);
+    game.renderState(active ? controls : NEUTRAL, dt, title);
+    hud.show(!title && game.menus.mode !== 'error');
+    if (!title) hud.update(game, camera, controls);
+    game.audio.update(game, active && !frozen);
+    renderer.render(scene, camera);
+    frames++;
+    if (shot && frames === 2) window.__shotReady = true;
   }
-
-  // Leaving the tab pauses a running game rather than letting blocks fall unseen.
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && screen === SCREEN_PLAY) {
-      screen = SCREEN_PAUSED;
-      announce('Paused.');
-    }
-  });
-
-  announce('Block Dodger. Press Space or click to start.');
   requestAnimationFrame(frame);
 }
 
-if (shot) runShot(shot);
-else runGame();
+boot();
