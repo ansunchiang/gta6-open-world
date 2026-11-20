@@ -130,25 +130,31 @@ export function createSirenGlow(scene) {
   });
   const bounce = new T.PointLight('#ff5264', 0, 22, 1.75);
   scene.add(bounce);
+  const flashPhase = (car, time) => Math.floor(time * 14 + car.phase * 3) % 6;
   return function update(units, player, time) {
     const closest = units.reduce((best, car) => {
       const d = Math.hypot(car.x - player.x, car.z - player.z);
       return d < best.d ? { car, d } : best;
     }, { car: null, d: 28 });
-    bounce.intensity = closest.car ? 35 : 0;
+    bounce.intensity = 0;
     if (closest.car) {
-      bounce.color.set(Math.floor(time * 6) % 2 ? '#63a6ff' : '#ff3458');
+      const phase = flashPhase(closest.car, time);
+      const pulse = [1, .51, 0, 1, .51, 0][phase];
+      bounce.color.set(phase < 3 ? '#ff3458' : '#63a6ff');
       bounce.position.set(closest.car.x, 1.95, closest.car.z);
+      bounce.intensity = 46 * pulse * (1 - closest.d / 31);
     }
     for (let i = 0; i < glows.length; i++) {
       const car = units[Math.floor(i / 2)];
       const glow = glows[i];
       const side = i % 2 === 0 ? -1 : 1;
-      const phase = car ? Math.floor(time * 9 + car.phase * 3) % 4 : 0;
-      glow.visible = !!car && (side < 0 ? phase < 2 : phase > 0);
+      const phase = car ? flashPhase(car, time) - (side < 0 ? 0 : 3) : -1;
+      glow.visible = phase === 0 || phase === 1;
       if (glow.visible) {
         glow.position.set(car.x + Math.cos(car.heading) * side * .39, 1.76, car.z + Math.sin(car.heading) * side * .39);
-        glow.material.opacity = .76;
+        const size = phase === 0 ? 2.9 : 1.85;
+        glow.scale.set(size, size, 1);
+        glow.material.opacity = phase === 0 ? .85 : .48;
       }
     }
   };

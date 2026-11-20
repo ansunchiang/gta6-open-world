@@ -89,6 +89,20 @@ export function drawMap(canvas, game, objective, mode = 'radar') {
     ctx.fillStyle = overview ? (building.h > 20 ? '#a4a49a' : '#777976') : '#92948b';
     rect(building.x - building.w / 2, building.z - building.d / 2, building.w, building.d);
   }
+  const { police } = game;
+  if (!overview && police.escapeTime !== null && police.lastKnown) {
+    const [x, y] = map(police.lastKnown.x, police.lastKnown.z);
+    const radius = (17 + Math.min(12, police.unseen * 1.45)) * scale;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#81e4ce1e';
+    ctx.fill();
+    ctx.strokeStyle = '#a2edddc9';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
   const site = objective?.point;
   if (site && mode !== 'title') {
     ctx.strokeStyle = objective.activity ? palette.mint : palette.gold;
@@ -134,9 +148,18 @@ export function drawMap(canvas, game, objective, mode = 'radar') {
     const [x, y] = map(site.x, site.z);
     diamond(ctx, Math.max(8, Math.min(w - 8, x)), Math.max(9, Math.min(h - 8, y)), 6.8, objective.activity ? palette.mint : palette.gold);
   }
-  for (const cop of game.police.units) {
+  for (const cop of police.units) {
     const [x, y] = map(cop.x, cop.z);
-    diamond(ctx, x, y, 4.1, '#ff797b');
+    ctx.lineWidth = 1.5;
+    diamond(ctx, x, y, cop.intercepting ? 5.8 : 4.1, '#ff797b', cop.intercepting);
+  }
+  if (!overview) {
+    for (const guard of game.guards) {
+      if (!guard.alerted || guard.down) continue;
+      const [x, y] = map(guard.x, guard.z);
+      ctx.fillStyle = guard.aim ? '#fff1b8' : '#f4b36e';
+      ctx.fillRect(x - 2, y - 2, 4, 4);
+    }
   }
   if (mode !== 'title') symbol(ctx, game.player, map, '#fffae2');
   ctx.fillStyle = '#182a34dc';

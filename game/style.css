@@ -28,7 +28,7 @@ button:focus-visible { outline: 2px solid #9ce8d7; outline-offset: 4px; }
 .job { position: absolute; top: var(--gutter); left: var(--gutter); padding: 13px 18px 14px; min-width: 264px; border-left: 3px solid var(--orange); }
 .job h2 { font-size: clamp(22px, 2.36vw, 34px); line-height: 1; margin: 5px 0 7px; letter-spacing: -.046em; }
 .job p { color: #f6e9d4; font-size: 15px; font-weight: 600; margin: 0; }
-.vitals { position: absolute; top: var(--gutter); right: var(--gutter); min-width: 222px; }
+.vitals { position: absolute; top: var(--gutter); right: var(--gutter); min-width: 242px; }
 .dispatch { padding: 10px 13px 8px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 #pursuit-label { font: 700 10px var(--mono); letter-spacing: .10em; color: var(--muted); }
 #stars { font: bold 24px/1 system-ui, sans-serif; letter-spacing: 1.5px; color: #b6a99b; white-space: nowrap; }
@@ -115,8 +115,9 @@ button:disabled { opacity: .47; cursor: default; }
   .radar { width: 156px; }
   .job { min-width: 0; max-width: 55%; }
   .vitals { min-width: 0; }
-  .dispatch { gap: 6px; }
-  #pursuit-label { display: none; }
+  .dispatch { display: grid; gap: 4px; justify-items: end; justify-content: end; padding: 7px 9px; }
+  #pursuit-label { font-size: 9px; letter-spacing: .04em; white-space: nowrap; }
+  #stars { grid-row: 1; font-size: 19px; letter-spacing: .5px; }
   .toast { top: calc(var(--gutter) + 120px); }
   #instructions { display: none; }
 }

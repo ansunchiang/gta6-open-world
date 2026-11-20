@@ -32,7 +32,14 @@ export function createHud() {
     content('job-kind', objective.activity ? 'SIDE JOB' : objective.optional ? 'FREE ROAM' : 'STORY JOB 0' + objective.number);
     content('job-title', objective.title);
     content('job-task', objective.task);
-    content('pursuit-label', police.stars ? police.unseen > 3 ? 'LOSING SIGNAL' : 'IN PURSUIT' : 'HARBOR PATROL');
+    const search = police.escapeTime !== null;
+    let dispatchLabel = 'HARBOR PATROL';
+    if (police.stars) {
+      const cutoff = police.units.some(car => car.intercepting);
+      dispatchLabel = search ? `EVADE · ${Math.ceil(police.escapeTime)}S` :
+        cutoff ? 'INTERCEPT AHEAD' : police.contact ? 'IN PURSUIT' : 'PATROL EN ROUTE';
+    }
+    content('pursuit-label', dispatchLabel);
     if (lastStars !== police.stars) {
       lastStars = police.stars;
       const hot = document.createElement('b');
@@ -41,7 +48,7 @@ export function createHud() {
       nodes.stars.setAttribute('aria-label', `Wanted level ${lastStars} of 5`);
     }
     dispatch.classList.toggle('hot', police.stars > 0);
-    dispatch.classList.toggle('search', police.unseen > 3);
+    dispatch.classList.toggle('search', search);
     content('money', '$' + dollars.format(player.money));
     content('district', districtAt(player.x, player.z).name);
     const whole = Math.floor(game.timeOfDay) % 1440;
