@@ -1,4 +1,9 @@
+# Local build output, dependencies, and development files
 out/
 .DS_Store
 node_modules/
 *.log
+.env
+*.tmp
+.playwright/
+test-results/

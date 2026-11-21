@@ -1,3 +1,6 @@
+This notice covers game/vendor/three.module.min.js and
+game/vendor/three.core.min.js, both part of three.js by the three.js authors.
+
 The MIT License
 
 Copyright © 2010-2025 three.js authors
