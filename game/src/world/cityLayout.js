@@ -1,14 +1,26 @@
 export const GRID = [-180, -120, -60, 0, 60, 120, 180];
-export const ROAD = 18;
 export const EDGE = 202;
 export const SHORE = 222;
+export const LAND = [
+  [-207,-205], [190,-205], [190,204], [-62,204], [-73,168], [-122,137],
+  [-184,132], [-206,108],
+];
+
+export function southBank(x) {
+  if (x >= -62) return 204;
+  for (let i = 3; i < LAND.length - 1; i++) {
+    const [a, z] = LAND[i], [b, next] = LAND[i + 1];
+    if (x >= b) return z + (next - z) * (x - a) / (b - a);
+  }
+  return 108;
+}
 
 export const DISTRICTS = [
-  { name: 'Mirage Row', subtitle: 'ART DECO QUARTER', x: 0, z: 72, color: '#fda374' },
-  { name: 'Glasspoint', subtitle: 'CIVIC CORE', x: 3, z: -83, color: '#9bdddf' },
-  { name: 'Beacon Strand', subtitle: 'EAST WATERFRONT', x: 172, z: 3, color: '#fed278' },
-  { name: 'Brine Yards', subtitle: 'WORKING HARBOR', x: -153, z: -99, color: '#89cbc2' },
-  { name: 'West Locks', subtitle: 'CANAL DISTRICT', x: -119, z: 112, color: '#c7b5ef' },
+  { name: 'Mirage Row', x: 0, z: 72, color: '#fda374' },
+  { name: 'Glasspoint', x: 3, z: -83, color: '#9bdddf' },
+  { name: 'Beacon Strand', x: 172, z: 3, color: '#fed278' },
+  { name: 'Brine Yards', x: -153, z: -99, color: '#89cbc2' },
+  { name: 'West Locks', x: -119, z: 112, color: '#c7b5ef' },
 ];
 
 export const PLACES = {
@@ -20,6 +32,9 @@ export const PLACES = {
   market: { x: 49, z: 61, label: 'NIGHT MARKET' },
   race: { x: 120, z: 125, label: 'BREAKWATER SPRINT' },
   delivery: { x: -109, z: 121, label: 'LOCKSIDE COURIER' },
+  marina: { x: 215, z: 42, label: 'CINDER MARINA' },
+  bridge: { x: 271, z: 120, label: 'BEACON CAUSEWAY' },
+  safehouse: { x: -9.5, z: 129, label: 'THE SALT FLAT' },
 };
 
 export function closestStreet(value) {
@@ -32,16 +47,12 @@ export function districtAt(x, z) {
   return DISTRICTS[z < -20 ? 1 : 0];
 }
 
-export function isRoad(x, z) {
-  return Math.abs(x - closestStreet(x)) < ROAD / 2 || Math.abs(z - closestStreet(z)) < ROAD / 2;
-}
-
 export function mapRoute(from, to) {
   const startX = closestStreet(from.x);
   const startZ = closestStreet(from.z);
   const endX = closestStreet(to.x);
   const endZ = closestStreet(to.z);
-  const first = Math.abs(from.x - startX) < Math.abs(from.z - startZ) ? { x: startX, z: from.z } : { x: from.x, z: startZ };
-  const last = Math.abs(to.x - endX) < Math.abs(to.z - endZ) ? { x: endX, z: to.z } : { x: to.x, z: endZ };
-  return [from, first, { x: startX, z: startZ }, { x: endX, z: startZ }, { x: endX, z: endZ }, last, to];
+  if (from.x > 194 && to.x > 194) return [from, to];
+  return [from, { x: startX, z: from.z }, { x: startX, z: startZ },
+    { x: endX, z: startZ }, { x: endX, z: endZ }, { x: endX, z: to.z }, to];
 }

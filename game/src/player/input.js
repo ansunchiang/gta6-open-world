@@ -1,15 +1,12 @@
 const gameplayKeys = new Set([
   'KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight',
-  'KeyE','KeyF','KeyQ','KeyR','KeyC','KeyM','KeyP','Digit1','Digit2','Escape','Enter',
+  'KeyE','KeyF','KeyQ','KeyR','KeyC','KeyM','KeyP','KeyV','KeyX','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Escape','Enter',
 ]);
 
 export function createInput(canvas) {
   const held = new Set();
   const presses = new Set();
-  let mouseX = 0;
-  let mouseY = 0;
-  let aim = false;
-  let attack = false;
+  let mouseX = 0, mouseY = 0, aim = false, attack = false;
 
   function reset() {
     held.clear();
@@ -27,10 +24,7 @@ export function createInput(canvas) {
   window.addEventListener('keyup', event => held.delete(event.code));
   window.addEventListener('blur', reset);
   canvas.addEventListener('mousedown', event => {
-    if (event.button === 2) {
-      aim = true;
-      event.preventDefault();
-    }
+    if (event.button === 2) aim = true;
     if (event.button === 0) {
       attack = true;
       presses.add('MouseAttack');
@@ -40,7 +34,6 @@ export function createInput(canvas) {
     if (event.button === 2) aim = false;
     if (event.button === 0) attack = false;
   });
-  canvas.addEventListener('pointercancel', reset);
   canvas.addEventListener('contextmenu', event => event.preventDefault());
   window.addEventListener('mousemove', event => {
     if (!aim) return;
@@ -49,7 +42,7 @@ export function createInput(canvas) {
   });
   const down = (...keys) => keys.some(key => held.has(key));
   return {
-    down, reset,
+    reset,
     take(key) { return presses.delete(key); },
     poll() {
       const controls = {

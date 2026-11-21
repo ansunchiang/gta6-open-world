@@ -1,19 +1,25 @@
 // Package Salt Relay for the make.fun browser-game grader.
 
-import { cpSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { cpSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
-const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const out = resolve(process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
+if (out === resolve(here) || ['game', 'screenshots'].some(name => out === join(here, name) || out.startsWith(join(here, name) + sep))) {
+  throw new Error('Use a separate build output directory.');
+}
 
 mkdirSync(out, { recursive: true });
-cpSync(join(here, 'game'), join(out, 'game'), { recursive: true });
 const captures = join(here, 'screenshots');
 const names = readdirSync(captures).filter(name => !name.startsWith('.'));
 if (names.length !== 4) throw new Error('Salt Relay requires exactly four game captures.');
-cpSync(captures, join(out, 'screenshots'), { recursive: true });
+for (const name of ['game', 'screenshots']) {
+  const destination = join(out, name);
+  rmSync(destination, { recursive: true, force: true });
+  cpSync(join(here, name), destination, { recursive: true });
+}
 
 // The scorer's own caps (reference/gate.json): only text_max_bytes shapes the bytes; the others refuse an entry the
 // scorer would refuse (more than 4 screenshots or one over 256 KiB; more than 993 files in game/ or 48 MiB of game

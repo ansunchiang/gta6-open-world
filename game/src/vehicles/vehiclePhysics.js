@@ -1,5 +1,6 @@
 import { createVehicleModel, VEHICLE_TYPES, flashSiren } from './vehicleModel.js';
 import { clamp, distance, turn, angle, blend } from '../render/geometry.js';
+import { marineStep } from '../world/marina.js';
 
 export function spawnVehicle(scene, type, color, x, z, heading, mode) {
   const model = createVehicleModel(scene, type, color);
@@ -11,7 +12,7 @@ export function spawnVehicle(scene, type, color, x, z, heading, mode) {
 }
 
 export function syncVehicle(car, clock) {
-  car.node.position.set(car.x, 0, car.z);
+  car.node.position.set(car.x, car.type === 'boat' ? Math.sin(clock * 2.3 + car.phase) * .07 : 0, car.z);
   car.node.rotation.set(Math.min(.04, car.impact * .04) * Math.sin(clock * 39), -car.heading, -car.steering * Math.min(Math.abs(car.speed) / 100, .13), 'YXZ');
   car.door.visible = (car.doorSwing ?? 0) > .02;
   car.door.rotation.y = -(car.doorSwing ?? 0);
@@ -35,11 +36,12 @@ export function driveVehicle(car, input, city, vehicles, dt, effects, upgrades, 
   const x = Math.sin(car.heading) * car.speed * dt;
   const z = -Math.cos(car.heading) * car.speed * dt;
   const oldSpeed = car.speed;
-  const bumped = city.move(car, car.x + x, car.z + z, 1.19, true);
+  const bumped = car.type === 'boat' ? marineStep(car, car.x + x, car.z + z) :
+    city.move(car, car.x + x, car.z + z, car.type === 'scooter' ? .61 : 1.19, true);
   if (bumped) car.speed *= -.24;
 
   for (const other of vehicles) {
-    if (other === car || other.health <= 0 || other.mode === 'held' || distance(car, other) > 4.5) continue;
+    if (other === car || other.mode === 'held' || distance(car, other) > 4.5) continue;
     const dx = other.x - car.x;
     const dz = other.z - car.z;
     const ahead = Math.sin(car.heading) * dx - Math.cos(car.heading) * dz;
@@ -49,8 +51,8 @@ export function driveVehicle(car, input, city, vehicles, dt, effects, upgrades, 
     car.speed = Math.sign(oldSpeed) * Math.min(Math.abs(car.speed), Math.abs(other.speed)) * .39;
     other.impact = .72;
     if (Math.abs(oldSpeed) > 7 && car.impact <= 0) {
-      other.health = Math.max(8, other.health - Math.abs(oldSpeed) * 1.32);
-      city.move(other, other.x + dx * .26, other.z + dz * .26, 1.12, true);
+      other.health -= Math.abs(oldSpeed) * 1.32;
+      if (other.type !== 'boat' && !other.barrier) city.move(other, other.x + dx * .26, other.z + dz * .26, 1.12, true);
       onCrash(other);
     }
     break;
@@ -61,8 +63,7 @@ export function driveVehicle(car, input, city, vehicles, dt, effects, upgrades, 
     car.impact = .7;
   }
   car.impact = Math.max(0, car.impact - dt);
-  if (brake && Math.abs(steer) > .25 && Math.abs(car.speed) > 7) effects.skid(car);
-  if (car.health < 28) effects.smoke(car.x, .8, car.z);
+  if (car.type !== 'boat' && brake && Math.abs(steer) > .25 && Math.abs(car.speed) > 7) effects.skid(car);
 }
 
 export function guideVehicle(car, point, speed, dt, city) {

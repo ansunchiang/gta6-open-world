@@ -1,171 +1,118 @@
-import { DISTRICTS, GRID, SHORE, mapRoute } from '../world/cityLayout.js';
+import { DISTRICTS, GRID, LAND, mapRoute } from '../world/cityLayout.js';
 import { ACTIVITIES } from '../missions/activities.js';
-
-const palette = {
-  land: '#343e44', road: '#536064', edge: '#6a7473', sea: '#284d57', sand: '#88776b',
-  ink: '#202c34', cream: '#fcdec0', gold: '#ffd18a', mint: '#9ce9d7',
-};
-
-function path(ctx, points, map) {
-  ctx.beginPath();
-  for (let i = 0; i < points.length; i++) {
-    const [x, y] = map(points[i].x, points[i].z);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-}
-
-function diamond(ctx, x, y, size, fill, outlined = false) {
-  ctx.beginPath();
-  ctx.moveTo(x, y - size);
-  ctx.lineTo(x + size, y);
-  ctx.lineTo(x, y + size);
-  ctx.lineTo(x - size, y);
-  ctx.closePath();
-  ctx[outlined ? 'strokeStyle' : 'fillStyle'] = fill;
-  if (outlined) ctx.stroke();
-  else ctx.fill();
-}
-
-function symbol(ctx, actor, map, color) {
-  const [x, y] = map(actor.x, actor.z);
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(actor.heading);
-  ctx.beginPath();
-  ctx.moveTo(0, -8);
-  ctx.lineTo(6, 6);
-  ctx.lineTo(0, 3);
-  ctx.lineTo(-6, 6);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.strokeStyle = '#13242c';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.fill();
-  ctx.restore();
-}
+import { slips } from '../world/marina.js';
+import { CAUSEWAY } from '../world/districtStyles.js';
 
 export function drawMap(canvas, game, objective, mode = 'radar') {
   const ctx = canvas.getContext('2d');
-  const { width: w, height: h } = canvas;
-  const overview = mode !== 'radar';
-  const scale = overview ? Math.min(w / 516, h / 452) : 1.50;
-  const x0 = overview ? 22 : game.player.x;
-  const z0 = overview ? 0 : game.player.z;
-  const map = (x, z) => [w / 2 + (x - x0) * scale, h / 2 + (z - z0) * scale];
-  function rect(x, z, width, height) {
-    const [px, py] = map(x, z);
-    ctx.fillRect(px, py, width * scale, height * scale);
-  }
-
-  ctx.fillStyle = palette.ink;
-  ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = palette.sea;
-  rect(-249, -242, 545, 484);
-  ctx.strokeStyle = '#83bfba27';
-  ctx.lineWidth = 1;
-  for (let i = -235; i <= 235; i += 12) path(ctx, [{ x: -250, z: i }, { x: 286, z: i }], map);
-  ctx.fillStyle = palette.land;
-  rect(-205, -204, SHORE + 205, 408);
-  ctx.fillStyle = palette.sand;
-  rect(191, -204, 31, 408);
-  ctx.fillStyle = '#c9ad85';
-  rect(211, -27.7, 39, 7.8);
-  ctx.strokeStyle = palette.edge;
-  ctx.lineWidth = 19 * scale;
-  for (const value of GRID) {
-    path(ctx, [{ x: -200, z: value }, { x: 190, z: value }], map);
-    path(ctx, [{ x: value, z: -202 }, { x: value, z: 202 }], map);
-  }
-  ctx.strokeStyle = palette.road;
-  ctx.lineWidth = 15 * scale;
-  for (const value of GRID) {
-    path(ctx, [{ x: -201, z: value }, { x: 190, z: value }], map);
-    path(ctx, [{ x: value, z: -202 }, { x: value, z: 202 }], map);
-  }
-  for (const building of game.city.footprints) {
-    ctx.fillStyle = overview ? (building.h > 20 ? '#a4a49a' : '#777976') : '#92948b';
-    rect(building.x - building.w / 2, building.z - building.d / 2, building.w, building.d);
-  }
-  const { police } = game;
-  if (!overview && police.escapeTime !== null && police.lastKnown) {
-    const [x, y] = map(police.lastKnown.x, police.lastKnown.z);
-    const radius = (17 + Math.min(12, police.unseen * 1.45)) * scale;
+  const { width, height } = canvas;
+  const { player, police } = game;
+  const full = mode !== 'radar';
+  const scale = full ? Math.min(width / 535, height / 452) : 1.34;
+  const center = full ? { x: 41, z: 0 } : player;
+  const px = x => width / 2 + (x - center.x) * scale;
+  const py = z => height / 2 + (z - center.z) * scale;
+  const rect = (color, x, z, w, h) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(px(x), py(z), w * scale, h * scale);
+  };
+  function path(points) {
     ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#81e4ce1e';
+    points.forEach(([x, z], i) => i ? ctx.lineTo(px(x), py(z)) : ctx.moveTo(px(x), py(z)));
+  }
+  function diamond(x, y, size, hue) {
+    ctx.fillStyle = hue;
+    ctx.beginPath();
+    ctx.moveTo(x, y - size);
+    ctx.lineTo(x + size, y);
+    ctx.lineTo(x, y + size);
+    ctx.lineTo(x - size, y);
     ctx.fill();
-    ctx.strokeStyle = '#a2edddc9';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
+  }
+  ctx.fillStyle = '#244957';
+  ctx.fillRect(0, 0, width, height);
+  for (let z = -239; z < 239; z += 12) rect('#8ebebe20', -245, z, 585, .8);
+  ctx.save();
+  path(LAND);
+  ctx.closePath();
+  ctx.clip();
+  for (const [x, z, w, h, color] of [
+    [-207,-205,129,195,'#45625e'], [-78,-205,225,195,'#3d5565'],
+    [145,-205,48,409,'#596267'], [-207,-10,129,215,'#514e64'], [-78,-10,224,215,'#624e4d'],
+  ]) rect(color, x, z, w, h);
+  for (const line of GRID) {
+    rect('#687e82', line - 9, -205, 18, 410);
+    rect('#687e82', -207, line - 9, 397, 18);
+  }
+  for (const line of GRID) {
+    rect('#465a63', line - 7.7, -205, 15.4, 410);
+    rect('#465a63', -207, line - 7.7, 397, 15.4);
+  }
+  for (const { x, z, w, d, h, color } of game.city.footprints) {
+    rect(h ? full ? color : '#76847f' : '#6a936c', x - w / 2, z - d / 2, w, d);
+  }
+  ctx.restore();
+  rect('#b6957e', 190, -205, 32, 409);
+  for (const pier of slips) rect('#d9b68b', 211, pier - 2.8, 40, 5.6);
+  rect('#c2baa4', CAUSEWAY.x, CAUSEWAY.z - 8.7, CAUSEWAY.end - CAUSEWAY.x, 17.4);
+  if (!full && police.stars && police.lastKnown) {
+    const { x, z } = police.lastKnown;
+    ctx.beginPath();
+    ctx.arc(px(x), py(z), (17 + Math.min(12, police.unseen * 1.45)) * scale, 0, Math.PI * 2);
+    ctx.fillStyle = '#eb9b9125';
+    ctx.fill();
+    ctx.strokeStyle = police.contact ? '#ffaea1ce' : '#aff5e1ce';
+    ctx.setLineDash([4, 3]);
     ctx.stroke();
     ctx.setLineDash([]);
   }
   const site = objective?.point;
+  const objectiveColor = objective?.activity ? '#9ce9d7' : '#ffd18a';
   if (site && mode !== 'title') {
-    ctx.strokeStyle = objective.activity ? palette.mint : palette.gold;
+    ctx.strokeStyle = objectiveColor;
+    ctx.lineWidth = 2;
     ctx.setLineDash([4, 4]);
-    ctx.lineWidth = 2.1;
-    path(ctx, mapRoute(game.player, site), map);
+    path(mapRoute(player, site).map(({ x, z }) => [x, z]));
+    ctx.stroke();
     ctx.setLineDash([]);
   }
-
-  if (overview) {
-    for (const district of DISTRICTS) {
-      const right = district.name === 'Beacon Strand';
-      const [x, y] = map(district.x + (right ? 31 : 0), district.z + (right ? 30 : 0));
-      ctx.font = 'bold 12px system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.lineWidth = 3.6;
-      ctx.strokeStyle = '#28353b';
-      ctx.strokeText(district.name, x, y);
-      ctx.fillStyle = district.color;
-      ctx.fillText(district.name, x, y);
-    }
-  } else {
-    for (const car of game.cars) {
-      if (car === game.player.car || car.mode === 'police') continue;
-      const [x, y] = map(car.x, car.z);
-      ctx.fillStyle = '#e8d9ba9a';
-      ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
-    }
+  ctx.textAlign = 'center';
+  if (full) for (const district of DISTRICTS) {
+    const x = px(district.x), y = py(district.z);
+    ctx.font = '850 16px system-ui';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#263341';
+    ctx.strokeText(district.name, x, y);
+    ctx.fillStyle = district.color;
+    ctx.fillText(district.name, x, y);
   }
-  for (const activity of ACTIVITIES) {
-    const [x, y] = map(activity.x, activity.z);
+  for (const { x, z, color, symbol } of ACTIVITIES) {
     ctx.fillStyle = '#17272f';
-    ctx.strokeStyle = activity.color;
-    ctx.lineWidth = 1;
-    ctx.fillRect(x - 6, y - 6, 12, 12);
-    ctx.strokeRect(x - 6, y - 6, 12, 12);
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 9px monospace';
-    ctx.fillStyle = activity.color;
-    ctx.fillText(activity.symbol, x, y + 3.3);
+    ctx.fillRect(px(x) - 6, py(z) - 6, 12, 12);
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = color;
+    ctx.fillText(symbol, px(x), py(z) + 3.5);
   }
-  if (site) {
-    const [x, y] = map(site.x, site.z);
-    diamond(ctx, Math.max(8, Math.min(w - 8, x)), Math.max(9, Math.min(h - 8, y)), 6.8, objective.activity ? palette.mint : palette.gold);
+  if (site) diamond(px(site.x), py(site.z), 6.8, objectiveColor);
+  for (const car of police.units) diamond(px(car.x), py(car.z), car.barrier ? 6 : 4.4, '#ff6c78');
+  if (police.air) diamond(px(police.air.x), py(police.air.z), 6, '#95d7ff');
+  if (mode !== 'title') {
+    ctx.save();
+    ctx.translate(px(player.x), py(player.z));
+    ctx.rotate(player.heading);
+    ctx.beginPath();
+    ctx.moveTo(0,-9);
+    ctx.lineTo(6,6);
+    ctx.lineTo(0,3);
+    ctx.lineTo(-6,6);
+    ctx.closePath();
+    ctx.strokeStyle = '#122a33';
+    ctx.stroke();
+    ctx.fillStyle = '#fffae2';
+    ctx.fill();
+    ctx.restore();
   }
-  for (const cop of police.units) {
-    const [x, y] = map(cop.x, cop.z);
-    ctx.lineWidth = 1.5;
-    diamond(ctx, x, y, cop.intercepting ? 5.8 : 4.1, '#ff797b', cop.intercepting);
-  }
-  if (!overview) {
-    for (const guard of game.guards) {
-      if (!guard.alerted || guard.down) continue;
-      const [x, y] = map(guard.x, guard.z);
-      ctx.fillStyle = guard.aim ? '#fff1b8' : '#f4b36e';
-      ctx.fillRect(x - 2, y - 2, 4, 4);
-    }
-  }
-  if (mode !== 'title') symbol(ctx, game.player, map, '#fffae2');
-  ctx.fillStyle = '#182a34dc';
-  ctx.fillRect(w - 23, 6, 17, 19);
   ctx.fillStyle = '#fff0cf';
   ctx.font = 'bold 11px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('N', w - 14.5, 20);
+  ctx.fillText('N', full ? width - 22 : width / 2, 15);
 }

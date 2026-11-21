@@ -2,8 +2,7 @@ import * as T from '../../vendor/three.module.min.js';
 import { clamp, turn } from './geometry.js';
 
 export function createChaseCamera(camera, city) {
-  const target = new T.Vector3();
-  const nextPosition = new T.Vector3();
+  const next = new T.Vector3();
   const look = new T.Vector3();
   const rig = { yaw: 0, pitch: 0, manual: 0 };
   function update(player, input, dt, snap = false) {
@@ -25,33 +24,20 @@ export function createChaseCamera(camera, city) {
 
     const distance = driving ? 7.8 + Math.abs(player.car.speed) * .05 : input.aim ? 3.5 : 6.0;
     const lateral = driving ? -.36 : input.aim ? .96 : .18;
-    const elevation = driving ? 3.14 : input.aim ? 1.92 : 2.64;
-    const forwardX = Math.sin(rig.yaw);
-    const forwardZ = -Math.cos(rig.yaw);
-    const rightX = Math.cos(rig.yaw);
-    const rightZ = Math.sin(rig.yaw);
+    const elevation = driving ? 4.0 : input.aim ? 2.19 : 2.64;
+    const sine = Math.sin(rig.yaw), cosine = Math.cos(rig.yaw);
+    const x = player.x + cosine * lateral, z = player.z + sine * lateral;
     const lookAhead = driving ? 7.8 : input.aim ? 9.5 : 6.8;
-    target.set(player.x + forwardX * lookAhead + rightX * lateral, 1.67 - rig.pitch * 3.2, player.z + forwardZ * lookAhead + rightZ * lateral);
-
-    let safe = distance;
-    for (let step = 1.3; step <= distance; step += .60) {
-      const x = player.x - forwardX * step + rightX * lateral;
-      const z = player.z - forwardZ * step + rightZ * lateral;
-      if (city.obstacle(x, z, .31, 1.5 + step / distance * (elevation - 1.5))) {
-        safe = Math.max(1.0, step - .65);
-        break;
-      }
+    let safe = 1.3;
+    while (safe < distance && !city.obstacle(x - sine * safe, z + cosine * safe, .31, 1.5 + safe / distance * (elevation - 1.5))) {
+      safe += .60;
     }
-    nextPosition.set(
-      player.x - forwardX * safe + rightX * lateral,
-      Math.max(1.47, elevation + rig.pitch * 4.9),
-      player.z - forwardZ * safe + rightZ * lateral,
-    );
-    const roughness = player.car?.impact ?? player.hurt * .24;
-    nextPosition.x += roughness * .10 * Math.sin(performance.now() * .044);
+    safe = safe >= distance ? distance : Math.max(1, safe - .65);
     const damping = snap ? 1 : 1 - Math.exp(-dt * 11.5);
-    camera.position.lerp(nextPosition, damping);
-    look.lerp(target, snap ? 1 : 1 - Math.exp(-dt * 12));
+    next.set(x - sine * safe, Math.max(1.47, elevation + rig.pitch * 4.9), z + cosine * safe);
+    camera.position.lerp(next, damping);
+    next.set(x + sine * lookAhead, 1.67 - rig.pitch * 3.2, z - cosine * lookAhead);
+    look.lerp(next, damping);
     camera.lookAt(look);
     const fov = driving ? 65 + Math.min(6, Math.abs(player.car.speed) * .19) : input.aim ? 57 : 64;
     if (Math.abs(camera.fov - fov) > .05) {

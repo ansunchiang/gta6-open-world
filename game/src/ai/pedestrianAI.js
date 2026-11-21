@@ -35,13 +35,6 @@ export function createPedestrians(scene, city, random) {
     person.pace = 1.26 + random() * .57;
     people.push(person);
   }
-  for (const [x,z,i] of [[10.8,77,1],[10.75,71,4],[-10.8,79,2],[-10.7,85,5],[-10.9,94,0],[10.9,61,6],[-9.5,58,7]]) {
-    const person = spawnPerson(scene, x, z, outfits[i], i, 'civilian', z % 2 ? Math.PI : 0);
-    person.route = [{ x, z: 108 }, { x, z: 65 }];
-    person.routeIndex = i % 2;
-    person.pace = 1.35;
-    people.push(person);
-  }
   return people;
 }
 

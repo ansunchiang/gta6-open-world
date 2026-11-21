@@ -7,32 +7,27 @@ const trousers = ['#293e4a', '#362f41', '#525b5a', '#414954'];
 
 function buildRig(outfit, tone, style) {
   const player = style === 'player';
-  const guard = style === 'guard' || style === 'officer';
+  const guard = style === 'guard';
   const torso = new GeometryBatch();
   const skin = skinTones[tone % skinTones.length];
   const pants = trousers[tone % trousers.length];
   torso.box(pants, 0, .915, 0, .42, .285, .28);
   torso.box(outfit, 0, 1.27, 0, .475, .55, .294);
-  torso.box(player ? '#fff0d0' : outfit, 0, 1.325, -.155, .20, .42, .023);
   torso.box(skin, 0, 1.59, 0, .129, .22, .136);
   torso.ball(skin, 0, 1.76, -.009, .151, .19, .151);
   torso.ball(guard ? '#263d4e' : '#322531', 0, 1.849, .016, .165, .119, .165);
   for (const side of [-1, 1]) {
     torso.box('#362e34', side * .055, 1.778, -.146, .034, .017, .012);
-    torso.ball(skin, side * .149, 1.735, .005, .019, .039, .026);
   }
-  torso.ball(skin, 0, 1.732, -.152, .032, .042, .025);
   if (player) {
     torso.ball('#392a33', .075, 1.82, .143, .102, .115, .11);
     torso.box('#223644', -.019, 1.19, .17, .295, .31, .086, -.10);
     torso.box('#dc9c62', .047, 1.33, .168, .069, .445, .039, -.16);
     torso.box('#dcb283', -.05, 1.11, .219, .17, .072, .024);
-    torso.box('#b35650', 0, .988, .002, .478, .11, .295);
   }
   if (guard) {
-    torso.box(style === 'officer' ? '#547994' : '#404d4b', 0, 1.31, -.15, .39, .41, .086);
+    torso.box('#404d4b', 0, 1.31, -.15, .39, .41, .086);
     torso.box('#282e3d', 0, 1.85, -.115, .26, .045, .194);
-    torso.box('#cfab6d', -.093, 1.42, -.199, .07, .07, .018);
   }
   const arm = new GeometryBatch();
   arm.box(outfit, 0, -.15, 0, .143, .34, .167);
@@ -44,8 +39,8 @@ function buildRig(outfit, tone, style) {
   const gun = new GeometryBatch();
   gun.box('#394350', 0, -.43, -.158, .082, .086, .25);
   gun.box('#232b34', 0, -.49, -.075, .065, .137, .075);
-  const temp = new T.Group();
-  return [torso, arm, leg, gun].map(part => part.make(temp));
+  const group = new T.Group();
+  return [torso, arm, leg, gun].map(part => part.make(group));
 }
 
 export function createCharacter(scene, outfit, tone, style = 'civilian') {
@@ -76,7 +71,7 @@ export function createCharacter(scene, outfit, tone, style = 'civilian') {
   return { node, arms, legs, weapon };
 }
 
-export function animateCharacter(actor, clock, pace, dt) {
+export function animateCharacter(actor, clock, pace) {
   const { node, arms, legs, weapon } = actor.model;
   const step = Math.sin(clock * (pace > 4 ? 12 : 8.3) + (actor.phase ?? 0)) * Math.min(1, pace / 2.7);
   const disabled = (actor.down ?? 0) > 0;
@@ -89,4 +84,5 @@ export function animateCharacter(actor, clock, pace, dt) {
   arms[1].rotation.x = (actor.aim ? -1.41 : step * .42) - Math.sin(swing * Math.PI) * .7;
   arms[1].rotation.z = actor.aim ? -.15 : .135;
   weapon.visible = !!actor.armed;
+  weapon.scale.z = actor.weapon === 'shotgun' || actor.weapon === 'carbine' ? 2.5 : actor.weapon === 'smg' ? 1.6 : 1;
 }

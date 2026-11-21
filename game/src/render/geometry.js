@@ -27,12 +27,6 @@ export function box(parent, material, x, y, z, width, height, depth) {
   return node;
 }
 
-export function ball(parent, material, x, y, z, sx, sy, sz) {
-  const node = addMesh(parent, sphere, material, x, y, z);
-  node.scale.set(sx, sy, sz);
-  return node;
-}
-
 export function cylinder(top, bottom, sides = 8) {
   const key = [top, bottom, sides].join('/');
   if (!tubes.has(key)) tubes.set(key, new T.CylinderGeometry(top, bottom, 1, sides));
