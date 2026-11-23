@@ -1,4 +1,4 @@
-import {DISTRICTS, districtAt} from 'city-layout'
+import {DISTRICTS, districtAt} from '../world/cityLayout.js'
 
 export const standingName = points => points >= 75 ? 'TRUSTED' : points >= 35 ? 'KNOWN' : points > 0 ? 'NEW FACE' : 'UNMET'
 const count = (value, max = 1e9) => Number.isFinite(value) ? Math.min(max, Math.max(0, value)) : 0

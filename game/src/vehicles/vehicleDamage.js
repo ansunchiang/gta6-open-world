@@ -1,4 +1,4 @@
-import {distance} from 'geometry'
+import {distance} from '../render/geometry.js'
 
 export function updateVehicleDamage(game, dt) {
 	const {cars, player, explosions, effects, audio, clock} = game

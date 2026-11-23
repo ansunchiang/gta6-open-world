@@ -24,8 +24,7 @@ function boot() {
 	const scene = new T.Scene()
 	const camera = new T.PerspectiveCamera(64, 1, .16, 1600)
 	const input = createInput(canvas)
-	const query = new URLSearchParams(location.search)
-	const preset = query.get('shot')
+	const query = new URLSearchParams(location.search), preset = query.get('shot')
 	const shot = ['chase', 'street', 'atlas', 'title'].includes(preset) && preset
 	const game = createSimulation(scene, camera, Number(query.get('seed')) || 2601, input, !!shot)
 	const hud = createHud()
@@ -42,49 +41,46 @@ function boot() {
 	}
 	resize()
 	addEventListener('resize', resize)
+	let frozen = !!shot, lag = 0, last = performance.now()
 	document.addEventListener('visibilitychange', () => {
 		if (document.hidden && menus.mode === 'play' && !frozen) menus.togglePause()
 	})
-
-	let frozen = !!shot, accumulator = 0, last = performance.now()
-	const title = id('title'), atlas = id('atlas'), hudPanel = id('hud')
+	const [title, atlas, panel] = ['title', 'atlas', 'hud'].map(id)
 	function frame(now) {
 		requestAnimationFrame(frame)
 		const dt = Math.min(.08, (now - last) / 1000)
 		last = now
 		if (input.take('Escape') || input.take('KeyP')) menus.togglePause()
 		if (input.take('KeyM')) menus.toggleMap()
-		if (input.take('Enter') && document.activeElement === document.body) {
-			if (menus.mode === 'title') id(id('continue').disabled ? 'start' : 'continue').click()
-			if (menus.mode === 'busted') game.retry()
-		}
+		if (input.take('Enter') && document.activeElement === document.body) menus.confirm()
 		const controls = input.poll(), active = menus.mode === 'play'
 		const {presses, attack, aim, throttle, steer} = controls
-		if (frozen && (presses.size || attack || aim || throttle || steer || active && ['atlas', 'title'].includes(shot))) {
+		const interactive = presses.size || attack || aim || throttle || steer
+		if (frozen && (interactive || active && (shot === 'atlas' || shot === 'title'))) {
 			frozen = false
 			if (active) game.audio.start()
 		}
 		for (const key of presses) queued.add(key)
 		controls.presses = queued
 		if (active && !frozen) {
-			accumulator += dt
-			while (accumulator >= FIXED_STEP && menus.mode === 'play') {
+			lag += dt
+			while (lag >= FIXED_STEP && menus.mode === 'play') {
 				game.simulate(controls, FIXED_STEP)
 				queued.clear()
-				accumulator -= FIXED_STEP
+				lag -= FIXED_STEP
 			}
-		} else {
-			accumulator = 0
+		} else if (!frozen && !title.hidden) game.idle(dt)
+		if (!active) {
+			lag = 0
 			queued.clear()
-			if (!title.hidden && !frozen) game.idle(dt)
 		}
 		const view = frozen && shot === 'street' ? {...NEUTRAL, aim: true} : active ? controls : NEUTRAL
 		game.renderState(view, frozen ? 0 : dt, !title.hidden)
-		hudPanel.hidden = !title.hidden || !atlas.hidden
-		if (!hudPanel.hidden) hud(game, camera, view)
+		panel.hidden = !title.hidden || !atlas.hidden
+		if (!panel.hidden) hud(game, camera, view)
 		game.audio.update(game, active && !frozen)
 		renderer.render(scene, camera)
-		if (shot) window.__shotReady = true
+		if (frozen) window.__shotReady = true
 	}
 	requestAnimationFrame(frame)
 }

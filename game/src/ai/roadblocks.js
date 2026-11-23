@@ -1,5 +1,5 @@
-import {closestStreet, GRID} from 'city-layout'
-import {distance, offset} from 'geometry'
+import {closestStreet, GRID} from '../world/cityLayout.js'
+import {distance, offset} from '../render/geometry.js'
 
 export function deployRoadblock(game, add, point, heading) {
 	const {city, cars} = game

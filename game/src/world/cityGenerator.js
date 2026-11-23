@@ -1,8 +1,8 @@
-import {GRID, EDGE, SHORE, districtAt, southBank} from 'city-layout'
+import {GRID, EDGE, SHORE, districtAt, southBank} from './cityLayout.js'
 import {buildStreets} from './streets.js'
 import {decoBuilding, palm, relayCrown, streetSign} from './architecture.js'
 import {buildWaterfront} from './waterfront.js'
-import {T, GeometryBatch, clamp} from 'geometry'
+import {T, GeometryBatch, clamp} from '../render/geometry.js'
 import {createRandom} from '../random.js'
 import {buildDistrictLandmarks} from './districtStyles.js'
 import {buildMarina, slips} from './marina.js'
@@ -32,17 +32,16 @@ export function generateCity(scene, seed) {
 		const x = left + 30, z = top + 30
 		if (southBank(left) < z + 21) continue
 		const {name} = districtAt(x, z)
-		const harbor = name === 'Brine Yards'
-		const colors = palettes[name]
-		slabs.box(harbor ? '#aca396' : '#c4b1a1', x,.015,z, 42,.18,42)
+		const harbor = name === 'Brine Yards', colors = palettes[name]
+		slabs.box(harbor ? '#aca396' : '#c4b1a1', x, .015, z, 42, .18, 42)
 		sidewalks.push({l: left + 10.4, t: top + 10.4, r: left + 49.6, b: top + 49.6})
 		const block = new GeometryBatch()
 		if (x === -150 && z === 90 || x >= 90 && z === x) {
-			slabs.box('#819c78', x,.122,z, 39,.07,39)
-			slabs.box('#dbc4ad', x,.16,z, 3.6,.05,39)
+			slabs.box('#819c78', x, .122, z, 39, .07, 39)
+			slabs.box('#dbc4ad', x, .16, z, 3.6, .05, 39)
 			for (const s of [-13, 0, 13]) {
 				palm(block, x + s, z + s, 8.7 + s * .10, s)
-				block.box('#c5a079', x + s + 3,.47,z + s, 2.40,.56,.63)
+				block.box('#c5a079', x + s + 3, .47, z + s, 2.4, .56, .63)
 			}
 			footprints.push({x, z, w: 39, d: 39, h: 0})
 		} else for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
@@ -50,8 +49,9 @@ export function generateCity(scene, seed) {
 			const w = 13.8 + random() * 3, d = 13.7 + random() * 3
 			const body = colors[Math.floor(random() * colors.length)]
 			if (harbor && dx === -1) {
-				for (let i = 0; i < 4; i++) block.box(['#bd644d','#4a8190','#c2a471','#87908a'][i],
-					bx + (i % 2) * 4 - 2,i < 2 ? 1.35 : 4.05,bz + i * .8, 3.2,2.7,10)
+				for (let i = 0; i < cargo.length; i++) {
+					block.box(cargo[i], bx + i % 2 * 4 - 2, i < 2 ? 1.35 : 4.05, bz + i * .8, 3.2, 2.7, 10)
+				}
 				solid({x: bx, z: bz + 1, w: 7.3, d: 12, h: 5.4})
 				continue
 			}
@@ -65,21 +65,20 @@ export function generateCity(scene, seed) {
 				const [name, color] = signs[Math.floor(random() * signs.length)]
 				const side = bx + dx * (w / 2 + .25)
 				streetSign(scene, name, side, 3.85, bz, w * .72, 1.13, dx * Math.PI / 2, color)
-				block.box(body, side + dx * .48,2.98,bz, 1.43,.16,w * .74)
-				lights.box(color, side + dx * 1.18,2.98,bz, .06,.08,w * .74)
+				const awning = w * .74
+				block.box(body, side + dx * .48, 2.98, bz, 1.43, .16, awning)
+				lights.box(color, side + dx * 1.18, 2.98, bz, .06, .08, awning)
 			}
 		}
-		if (!harbor) for (const offset of [-1, 1]) {
-			palm(block, x + 19.1 * offset, z + 14 * offset, 6.6 + random() * 2.4, random() * 6)
-		}
+		if (!harbor) for (const side of [-1, 1]) palm(block, x + 19.1 * side, z + 14 * side, 6.6 + random() * 2.4, random() * 6)
 		block.make(scene, {side: T.DoubleSide})
 	}
 
 	const cranes = new GeometryBatch()
-	for (const z of [-154,-119,-82]) {
-		cranes.box('#c48a5e', -201,9.3,z, 1.65,18.6,1.54)
-		cranes.box('#d2946b', -191,18.5,z, 23,.73,1.48)
-		cranes.box('#7d5a4c', -181,15.3,z, .10,6.4,.1)
+	for (const z of [-154, -119, -82]) {
+		cranes.box('#c48a5e', -201, 9.3, z, 1.65, 18.6, 1.54)
+		cranes.box('#d2946b', -191, 18.5, z, 23, .73, 1.48)
+		cranes.box('#7d5a4c', -181, 15.3, z, .1, 6.4, .1)
 	}
 
 	slabs.make(scene, {}, false).receiveShadow = true
@@ -89,15 +88,15 @@ export function generateCity(scene, seed) {
 	function solid(building) {
 		footprints.push(building)
 		const {x, z, w, d} = building
-		const rx = w / 2 + 3, rz = d / 2 + 3
-		for (let i = cell(x - rx); i <= cell(x + rx); i++) for (let j = cell(z - rz); j <= cell(z + rz); j++) {
-			const key = i * 64 + j
+		const column = cell(x), row = cell(z)
+		for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+			const key = (column + dx) * 64 + row + dz
 			if (!cells.has(key)) cells.set(key, [])
 			cells.get(key).push(building)
 		}
 	}
 
-	function cell(value) { return Math.floor(value / 20); }
+	function cell(value) { return Math.floor(value / 24) }
 	function obstacle(x, z, radius = .4, height = 0) {
 		const nearby = cells.get(cell(x) * 64 + cell(z)) ?? []
 		return nearby.some(s => height < s.h && Math.abs(x - s.x) < s.w / 2 + radius && Math.abs(z - s.z) < s.d / 2 + radius)
@@ -117,3 +116,5 @@ export function generateCity(scene, seed) {
 	}
 	return {footprints, sidewalks, water, neon, obstacle, move}
 }
+
+const cargo = ['#bd644d', '#4a8190', '#c2a471', '#87908a']

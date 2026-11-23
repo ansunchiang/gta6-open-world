@@ -20,6 +20,9 @@ export async function playTest(page, origin) {
     const { createSimulation, NEUTRAL } = await import('/src/world/simulation.js');
     const { PLACES } = await import('/src/world/cityLayout.js');
     const { WEAPONS, buyWeapon } = await import('/src/combat/weapons.js');
+    const { createSearch, stepSearch } = await import('/src/ai/pursuitSearch.js');
+    const { reactToAlarm, warnCrowd } = await import('/src/ai/crowdReaction.js');
+    const { driveVehicle } = await import('/src/vehicles/vehiclePhysics.js');
     const game = createSimulation(new T.Scene(), new T.PerspectiveCamera(), 2601, { reset() {} }, false);
     game.menus = { mode: 'play', show(mode) { this.mode = mode; } };
     const { player } = game;
@@ -32,6 +35,39 @@ export async function playTest(page, origin) {
       for (let i = 0; i < count; i++) game.simulate({ ...NEUTRAL, ...controls }, 1 / 60);
     };
     const press = (...keys) => tick(1, { presses: new Set(keys) });
+    const report = { x: 0, z: 0, heading: 0 };
+    const sweep = () => ({
+      heat: 5, quiet: 8, unseen: 3.4, search: createSearch(),
+      lastKnown: report, contact: false
+    });
+    const remote = sweep();
+    const close = sweep();
+    stepSearch(remote, { x: 88, z: 0, speed: 0 }, 1);
+    stepSearch(close, { ...report, speed: 7 }, 1);
+    check(remote.search.posts.length === 4 && remote.search.progress > close.search.progress,
+      'Street sweep posts and faster clearance outside the search area');
+    remote.contact = true;
+    stepSearch(remote, { x: 90, z: 0, heading: 1 }, 1 / 60);
+    check(!remote.search.sweeping && remote.search.progress === 0 && remote.lastKnown.x === 90,
+      'New contact clears the evasion meter and updates the sighting');
+    const walker = { x: 8, z: 0, heading: 0, panic: 0, routeIndex: 0, route: [{ x: 0, z: 0 }, { x: 8, z: 1 }] };
+    warnCrowd([walker], 0, 0, 24);
+    const curb = { obstacle: (x, z) => x > 9.5 && Math.abs(z) < .6 };
+    check(reactToAlarm(walker, curb, .08) === 0, 'Distant pedestrian reacts after a delay');
+    check(reactToAlarm(walker, curb, .2) > 4 && Math.abs(walker.flee - Math.PI / 2) > .5,
+      'Flee around a blocked path');
+    reactToAlarm(walker, curb, 6);
+    check(walker.routeIndex === 1 && walker.panic === 0, 'Resume the nearest sidewalk after the panic');
+
+    const drive = type => {
+      const car = { ...report, type, speed: 12, steering: 0, impact: 0 };
+      const ground = { move(target, x, z) { Object.assign(target, { x, z }); return false; } };
+      driveVehicle(car, { throttle: 1, steer: 1, brake: false }, ground, [], .2,
+        {}, { engine: 0, armor: 0 }, () => {});
+      return car.heading;
+    };
+    check(drive('scooter') > drive('volta') && drive('volta') > drive('van'),
+      'Steering response varies across vehicle classes');
     game.reset(null);
     at({ x: PLACES.garage.x, z: PLACES.garage.z + 1.8 });
     press('KeyE');
@@ -85,6 +121,15 @@ export async function playTest(page, origin) {
     at(PLACES.depot);
     press('KeyE');
     check(game.missions.chapter === 1 && player.money >= 460, 'Complete Borrowed Tide');
+    at({ x: 180, z: 123 });
+    const sidearm = player.loadout.pistol;
+    const beforeShot = sidearm.rounds;
+    press('Digit3', 'KeyF');
+    check(!player.car && sidearm.rounds === beforeShot - 1 && game.police.stars > 0,
+      'Fire on foot after escaping the five-star pursuit');
+    at({ x: 274, z: 120 });
+    tick(1100);
+    check(game.police.heat === 0, 'Clear the street encounter');
     const cash = player.money;
     at(PLACES.delivery);
     press('KeyE');

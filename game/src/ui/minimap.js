@@ -1,12 +1,13 @@
-import {DISTRICTS, GRID, LAND, PLACES, mapRoute} from 'city-layout'
+import {DISTRICTS, GRID, LAND, PLACES, mapRoute} from '../world/cityLayout.js'
 import {ACTIVITIES} from '../missions/activities.js'
 import {slips} from '../world/marina.js'
 import {CAUSEWAY} from '../world/districtStyles.js'
-import {STORY} from 'story-jobs'
+import {STORY} from '../missions/storyJobs.js'
 
 const zones = [
-	[-207,-205,129,194,'#56a68b'], [-78,-205,223,185,'#58a6ca'],
-	[145,-205,45,409,'#dba755'], [-207,-11,129,215,'#a89bd5'], [-78,-20,223,224,'#d98576'],
+	[-207, -205, 129, 194, '#56a68b'], [-78, -205, 223, 185, '#58a6ca'],
+	[145, -205, 45, 409, '#dba755'], [-207, -11, 129, 215, '#a89bd5'],
+	[-78, -20, 223, 224, '#d98576'],
 ]
 const icons = {safehouse: '■', garage: '✚', market: '✚'}
 const ink = '#102a3c'
@@ -15,94 +16,87 @@ export function drawMap(canvas, {city, player, police}, job, full = false) {
 	const ctx = canvas.getContext('2d')
 	const {width, height} = canvas
 	const scale = full ? Math.min(width / 510, height / 433) : 1.34
-	const {x, z} = full ? {x: 23, z: 0} : player
-	const rect = (hue, x, z, w, h) => {
-		ctx.fillStyle = hue
+	const center = full ? {x: 23, z: 0} : player
+	function rect(x, z, w, h, color) {
+		ctx.fillStyle = color
 		ctx.fillRect(x, z, w, h)
 	}
-	function path(points) {
-		ctx.beginPath()
-		for (const point of points) ctx.lineTo(...point)
-	}
-	function text(label, x, z, hue, size) {
-		ctx.font = `bold ${size}px system-ui`
-		ctx.fillStyle = hue
+	function text(label, x, z, color, size = 18) {
+		ctx.font = `700 ${size}px system-ui`
+		ctx.fillStyle = color
 		ctx.fillText(label, x, z)
 	}
-	function icon({x, z}, label, hue, large = full) {
-		const size = large ? 17 : 9
-		rect(ink, x - size / 2, z - size / 2, size, size)
-		text(label, x, z + size / 3, hue, large ? 14 : 7.5)
+	function icon({x, z}, glyph, color, size = full ? 17 : 9) {
+		const half = size / 2
+		rect(x - half, z - half, size, size, ink)
+		text(glyph, x, z + size / 3, color, size * .83)
 	}
-	rect(full ? '#176b87' : '#244957', 0, 0, width, height)
+	function path(points, color, width, closed = false) {
+		ctx.beginPath()
+		for (const point of points) ctx.lineTo(...point)
+		if (closed) ctx.closePath()
+		ctx.lineWidth = width
+		ctx.strokeStyle = color
+		ctx.stroke()
+	}
+
 	ctx.save()
-	ctx.setTransform(scale, 0, 0, scale, width / 2 - x * scale, height / 2 - z * scale)
-		ctx.textAlign = 'center'
+	ctx.textAlign = 'center'
+	rect(0, 0, width, height, full ? '#176b87' : '#244957')
+	ctx.transform(scale, 0, 0, scale, width / 2 - center.x * scale, height / 2 - center.z * scale)
 	ctx.save()
-	path(LAND)
-	ctx.closePath()
-	ctx.lineWidth = 4
-	ctx.strokeStyle = '#73e3da'
-	ctx.stroke()
+	path(LAND, '#73e3da', 4, true)
 	ctx.clip()
-	if (full) for (const [x, z, w, h, hue] of zones) rect(hue, x, z, w, h)
-	else rect('#54747a', -207, -205, 397, 410)
+	for (const zone of full ? zones : [[-207, -205, 397, 410, '#54747a']]) rect(...zone)
 	const road = full ? '#254f60' : '#304953'
-	for (const line of GRID) {
-		rect(road, line - 6, -205, 12, 410)
-		rect(road, -207, line - 6, 397, 12)
+	for (const street of GRID) {
+		rect(street - 6, -205, 12, 410, road)
+		rect(-207, street - 6, 397, 12, road)
 	}
-	for (const {x, z, w, d, h} of city.footprints) {
-		rect(h ? full ? '#fff1db60' : '#7d9394' : '#237b64', x - w / 2, z - d / 2, w, d)
-	}
+	const facade = full ? '#fff1db60' : '#7d9394'
+	for (const {x, z, w, d, h} of city.footprints) rect(x - w / 2, z - d / 2, w, d, h ? facade : '#237b64')
 	ctx.restore()
-	rect('#f1ca85', 190, -205, 32, 409)
-	rect('#7bd7c2', 222, -205, 2.5, 409)
-	for (const pier of slips) rect('#fae5b2', 211, pier - 2.8, 40, 5.6)
-	rect('#ffe1a1', CAUSEWAY.x, CAUSEWAY.z - 7, CAUSEWAY.end - CAUSEWAY.x, 14)
-	ctx.lineWidth = full ? 3 : 1.5
+	rect(190, -205, 32, 409, '#f1ca85')
+	rect(222, -205, 2.5, 409, '#7bd7c2')
+	for (const pier of slips) rect(211, pier - 2.8, 40, 5.6, '#fae5b2')
+	rect(CAUSEWAY.x, CAUSEWAY.z - 7, CAUSEWAY.end - CAUSEWAY.x, 14, '#ffe1a1')
+
+	const {radius, sweeping, posts} = police.search
 	ctx.setLineDash([3, 3])
-	if (!full && police.stars && police.lastKnown) {
+	if (police.stars && police.lastKnown && (!full || sweeping)) {
 		const {x, z} = police.lastKnown
 		ctx.beginPath()
-		ctx.arc(x, z, 17 + Math.min(12, police.unseen * 1.45), 0, Math.PI * 2)
-		ctx.fillStyle = '#eb9b9125'
+		ctx.arc(x, z, radius, 0, Math.PI * 2)
+		ctx.fillStyle = sweeping ? '#84e9d045' : '#eb9b9125'
 		ctx.fill()
-		ctx.strokeStyle = police.contact ? '#ffaea1ce' : '#aff5e1ce'
+		ctx.lineWidth = 1.5
+		ctx.strokeStyle = sweeping ? '#aff5e1' : '#ffaea1ce'
 		ctx.stroke()
+		if (sweeping) for (const post of posts) rect(post.x - 1, post.z - 1, 2, 2, '#d5ffeb')
 	}
 	const site = job?.point
-	const goal = job?.activity ? '#9ce9d7' : '#ffd18a'
-	if (site) {
-		ctx.strokeStyle = goal
-		path(mapRoute(player, site))
-		ctx.stroke()
-	}
+	const routeColor = job?.activity ? '#9ce9d7' : '#ffd18a'
+	if (site) path(mapRoute(player, site), routeColor, full ? 3 : 1.5)
 	ctx.setLineDash([])
 	if (full) {
 		for (const {anchor} of STORY) if (anchor !== site) icon(anchor, '◆', '#ffe396')
 		icon(PLACES.dispatch, '▲', '#fe9ba6')
-		text('Cinder Bay', 284, -76, '#b7f4ef', 18)
+		text('Cinder Bay', 284, -76, '#b7f4ef')
 		text('BEACON CAUSEWAY', 249, 151, '#b7f4ef', 11)
-		for (const {name, x, z, color} of DISTRICTS) {
-			ctx.font = 'bold 18px system-ui'
-			const w = ctx.measureText(name).width + 12
-			rect(ink, x - w / 2, z - 46, w, 24)
-			text(name, x, z - 28, color, 18)
+		for (const {name, color, x, z} of DISTRICTS) {
+			ctx.font = '700 18px system-ui'
+			const width = ctx.measureText(name).width + 12
+			rect(x - width / 2, z - 46, width, 24, ink)
+			text(name, x, z - 28, color)
 		}
 	}
 	for (const marker of ACTIVITIES) icon(marker, full ? icons[marker.type] ?? '●' : marker.symbol, marker.color)
-	if (site) icon(site, '◆', goal)
-	for (const car of police.units) icon(car, '▲', '#ff7886', false)
-	if (police.air) icon(police.air, '◆', '#adddff', false)
+	if (site) icon(site, '◆', routeColor)
+	for (const car of police.units) icon(car, '▲', '#ff7886', 9)
+	if (police.air) icon(police.air, '◆', '#adddff', 9)
 	ctx.translate(player.x, player.z)
 	ctx.rotate(player.heading)
-	ctx.font = `900 ${full ? 22 : 14}px system-ui`
-	ctx.lineWidth = 3
-	ctx.strokeStyle = ink
-	ctx.strokeText('▲', 0, 5)
-	ctx.fillStyle = '#fffbe5'
-	ctx.fillText('▲', 0, 5)
+	icon({x: 0, z: 0}, '▲', '#fffbe5', full ? 20 : 13)
 	ctx.restore()
 	ctx.textAlign = 'center'
 	text(full ? '↑ N' : 'N', full ? width - 47 : width / 2, full ? 39 : 15, '#fff0cf', full ? 24 : 11)

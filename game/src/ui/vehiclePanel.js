@@ -1,5 +1,5 @@
 import {VEHICLE_TYPES} from '../vehicles/vehicleModel.js'
-import {STATIONS} from 'radio-stations'
+import {STATIONS} from '../audio/radioStations.js'
 
 export function updateVehiclePanel({player: {car}, station}, text) {
 	const {name, song} = STATIONS[station]

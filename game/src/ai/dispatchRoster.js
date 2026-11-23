@@ -1,4 +1,4 @@
-import {distance} from 'geometry'
+import {distance} from '../render/geometry.js'
 
 const callsigns = ['GULL', 'REEF', 'TIDE', 'PIER', 'BUOY', 'JETTY']
 
@@ -9,12 +9,9 @@ export function registerUnit(police, unit) {
 }
 
 export function dispatchRoster(police, player) {
-	const ground = police.units.map(unit => ({
-		name: unit.callsign, tactic: unit.tactic, range: Math.round(distance(unit, player)),
-	})).sort((a, b) => a.range - b.range)
+	const row = (actor, name, tactic) => ({name, tactic, range: Math.round(distance(actor, player))})
+	const ground = police.units.map(unit => row(unit, unit.callsign, unit.tactic)).sort((a, b) => a.range - b.range)
 	const air = police.air
-	if (air) ground.unshift({
-		name: 'KITE-01', tactic: air.visible ? 'SPOTLIGHT' : 'AIR SWEEP', range: Math.round(distance(air, player)),
-	})
+	if (air) ground.unshift(row(air, 'KITE-01', air.visible ? 'SPOTLIGHT' : 'AIR SWEEP'))
 	return ground.slice(0, 6)
 }

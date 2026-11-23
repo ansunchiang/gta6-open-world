@@ -1,32 +1,25 @@
-import {WEAPONS, buyWeapon} from 'weapons'
+import {WEAPONS, buyWeapon} from '../combat/weapons.js'
 import {garageUpgrades} from '../progression/garageUpgrades.js'
 import {respectRank} from '../progression/respect.js'
 import {createTitleScreen, id, money} from './titleScreen.js'
 import {createPauseAtlas} from './pauseAtlas.js'
 
-const shopItems = {
+const shops = {
 	garage: garageUpgrades,
 	market: [
-		{type: 'weapon', name: 'Mark II pistol', price: 235, description: 'More firearm damage'},
-		{type: 'ammo', name: 'Ammo crate', price: 65, description: 'Refill reserves'},
-		{type: 'repair', name: 'First aid', price: 55, description: 'Restore health and armor'},
-		...WEAPONS.filter(weapon => weapon.price),
+		{type: 'weapon', name: 'Mark II pistol', price: 235},
+		{type: 'ammo', name: 'Ammo crate', price: 65},
+		{type: 'repair', name: 'First aid', price: 55},
+		...WEAPONS.filter(item => item.price),
 	],
 }
 const dialogs = {
 	help: 'Controls', settings: 'Settings', garage: 'Rook’s Garage', market: 'Night Market', busted: 'Taken down',
 }
-const bindings = [
-	['Move / drive', 'WASD or arrows'], ['Sprint / handbrake', 'Shift / Space'],
-	['Talk / enter / exit', 'E'], ['Aim / center', 'Hold right mouse / C'],
-	['Attack / equip / reload', 'LMB or F / 1–7 or Q / R'],
-	['Radio / crew', 'V / X, Z, B'], ['Map / pause', 'M / Esc'],
-]
 
 export function createMenus(game, clearQueued) {
 	const title = id('title'), atlas = id('atlas'), overlay = id('overlay')
-	const panels = ['help', 'settings', 'shop', 'busted'].map(name => id(name + '-panel'))
-	id('bindings').innerHTML = bindings.map(([action, key]) => `<dt>${action}<dd>${key}`).join('')
+	const panels = overlay.querySelectorAll('[data-panel]')
 	let mode = 'title', back
 	const refreshTitle = createTitleScreen(game)
 	const openAtlas = createPauseAtlas(game, show)
@@ -37,38 +30,36 @@ export function createMenus(game, clearQueued) {
 		game.input.reset()
 		clearQueued()
 		mode = next
-		const background = dialog ? back : mode
-		title.hidden = background !== 'title'
-		atlas.hidden = background !== 'pause'
+		title.hidden = (dialog ? back : next) !== 'title'
+		atlas.hidden = (dialog ? back : next) !== 'pause'
 		title.inert = atlas.inert = dialog
 		const heading = dialogs[mode]
-		const panel = shopItems[mode] ? 'shop' : mode
+		const stock = shops[mode]
 		overlay.hidden = !heading
-		for (const node of panels) node.hidden = node.id !== panel + '-panel'
+		for (const node of panels) node.hidden = node.dataset.panel !== (stock ? 'shop' : mode)
 		if (mode === 'title') refreshTitle()
 		if (mode === 'pause') openAtlas(tab)
 		if (heading) id('overlay-title').textContent = heading
-		if (shopItems[mode]) showShop(mode)
+		if (stock) showShop(stock)
 	}
 
-	function showShop(type) {
+	function showShop(stock) {
 		const {player, upgrades} = game
 		const list = id('shop-items')
 		id('shop-cash').textContent = money(player.money)
 		list.replaceChildren()
 		const rank = respectRank(player.rep).level
-		for (const item of shopItems[type]) {
-			const {id, type: service, name, description} = item
+		for (const item of stock) {
+			const {id, type: service, name} = item
 			const level = upgrades[service]
 			const price = item.price + (level ?? 0) * 90
 			const capped = level >= 2 || player.loadout[id]?.owned
 			const locked = item.rank > rank
-			const button = document.createElement('button')
-			button.className = 'quiet'
-			button.disabled = capped || locked || player.money < price
 			const label = level == null ? name : `${name} · Lv ${level}`
 			const cost = capped ? 'FULL' : locked ? 'RANK ' + item.rank : money(price)
-			button.innerHTML = `<strong>${label}</strong><span>${cost}</span><small>${description ?? 'Weapon unlock'}</small>`
+			list.insertAdjacentHTML('beforeend', `<button class=quiet><b>${label}</b><span>${cost}</span></button>`)
+			const button = list.lastChild
+			button.disabled = capped || locked || player.money < price
 			button.onclick = () => {
 				player.money -= price
 				if (level != null) upgrades[service]++
@@ -83,9 +74,8 @@ export function createMenus(game, clearQueued) {
 				}
 				game.audio.effect('coin')
 				game.save()
-				showShop(type)
+				showShop(stock)
 			}
-			list.append(button)
 		}
 	}
 
@@ -99,15 +89,19 @@ export function createMenus(game, clearQueued) {
 		else if (mode === 'play' || mode === 'pause') show('pause', 'Map')
 	}
 
-	for (const button of ['resume', 'shop-back', 'help-back', 'settings-back']) id(button).onclick = togglePause
-	id('title-help').onclick = () => show('help')
-	id('settings').onclick = () => show('settings')
+	for (const node of document.querySelectorAll('[data-back]')) node.onclick = togglePause
+	for (const node of document.querySelectorAll('[data-menu]')) node.onclick = () => show(node.dataset.menu)
 	id('retry').onclick = game.retry
 	const sound = id('audio-button')
 	sound.onclick = () => sound.textContent = game.audio.toggle() ? 'Sound off' : 'Sound on'
-	id('orbit-button').onclick = event => {
+	const orbit = id('orbit-button')
+	orbit.onclick = () => {
 		game.stillTitle = !game.stillTitle
-		event.currentTarget.textContent = 'City camera ' + (game.stillTitle ? 'off' : 'on')
+		orbit.textContent = game.stillTitle ? 'City camera off' : 'City camera on'
 	}
-	return {show, togglePause, toggleMap, get mode() { return mode; }}
+	function confirm() {
+		if (mode === 'title') id(id('continue').disabled ? 'start' : 'continue').click()
+		if (mode === 'busted') game.retry()
+	}
+	return {show, togglePause, toggleMap, confirm, get mode() { return mode }}
 }

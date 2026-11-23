@@ -1,5 +1,5 @@
-import {GRID} from 'city-layout'
-import {angle, blend, distance} from 'geometry'
+import {GRID} from '../world/cityLayout.js'
+import {angle, blend, distance} from '../render/geometry.js'
 import {guideVehicle, spawnVehicle, syncVehicle} from '../vehicles/vehiclePhysics.js'
 import {boats} from '../world/marina.js'
 
@@ -9,7 +9,7 @@ function loop(left, right, top, bottom) {
 	return [[left + 3.7, top + 3.7], [right - 3.7, top + 3.7],
 		[right - 3.7, bottom - 3.7], [left + 3.7, bottom - 3.7]].map(([x, z]) => ({x, z}))
 }
-const avenueRoute = loop(0, 120, -180, 180)
+const avenue = loop(0, 120, -180, 180)
 
 function trafficCar(scene, route, start, ratio, type, color, pace) {
 	const routeIndex = (start + 1) % route.length
@@ -23,23 +23,18 @@ export function createTraffic(scene, random) {
 	const cars = []
 	for (let i = 0; i < 45; i++) {
 		const lane = i % 7
-		const route = lane === 0 ? avenueRoute :
+		const route = lane === 0 ? avenue :
 			loop(GRID[(lane + 4) % 5], GRID[4 + lane % 3], GRID[lane % 3], GRID[4 + (lane + 1) % 3])
-		const progress = random()
-		const type = types[i % types.length]
+		const progress = random() * 4, type = types[i % types.length]
 		const color = type === 'taxi' ? '#edb956' : colors[i % colors.length]
-		cars.push(trafficCar(scene, route, Math.floor(progress * 4), progress * 4 % 1, type, color, 6.5 + random() * 4))
+		cars.push(trafficCar(scene, route, Math.floor(progress), progress % 1, type, color, 6.5 + random() * 4))
 	}
-	const arrival = trafficCar(scene, avenueRoute, 3, .243, 'volta', '#e8744e', 5.6)
-	arrival.speed = 0
-	arrival.wait = 23
-	arrival.driver = true
-	cars.unshift(arrival)
+	cars.unshift(Object.assign(trafficCar(scene, avenue, 3, .243, 'volta', '#e8744e', 5.6), {speed: 0, wait: 23}))
 	for (const [index, point] of boats.entries()) cars.push(spawnVehicle(scene, 'boat', ['#fc9a69','#6fc5ba','#9a91cf'][index], point.x, point.z, Math.PI / 2, 'parked'))
 	for (const [x, z, type, color, heading = 0] of [
 		[6.4,93.8,'volta','#59a19f'], [6.4,76,'reed','#a5a3c6'], [-6.3,70,'taxi','#e6b367',Math.PI],
 		[186,-13,'van','#bdc4ac'], [186,37,'scooter','#e6b957'], [-64,-16,'volta','#74a6be'],
-		[114,133,'tide','#d07d5d'], [-115,133,'van','#b7cdac'], [-114,-109,'reed','#e4b792'], [6.6,-149,'volta','#a0c6ba'],
+		[114,133,'tide','#fa562a'], [-115,133,'van','#b7cdac'], [-114,-109,'reed','#e4b792'], [6.6,-149,'volta','#a0c6ba'],
 	]) {
 		cars.push(spawnVehicle(scene, type, color, x, z, heading, 'parked'))
 	}

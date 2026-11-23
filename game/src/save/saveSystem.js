@@ -1,5 +1,5 @@
 import {careerStats} from '../progression/careerStats.js'
-import {STORY} from 'story-jobs'
+import {STORY} from '../missions/storyJobs.js'
 
 export const count = (value, max, fallback = 0) =>
 	Number.isFinite(value) ? Math.floor(Math.min(max, Math.max(0, value))) : fallback

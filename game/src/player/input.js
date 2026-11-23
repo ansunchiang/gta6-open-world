@@ -38,13 +38,14 @@ export function createInput(canvas) {
 		mouseY += movementY
 	})
 	const down = (...keys) => keys.some(key => held.has(key))
+	const axis = (positive, negative) => Number(down(...positive)) - Number(down(...negative))
 	return {
 		reset,
 		take(key) { return presses.delete(key); },
 		poll() {
 			const controls = {
-				throttle: Number(down('KeyW','ArrowUp')) - Number(down('KeyS','ArrowDown')),
-				steer: Number(down('KeyD','ArrowRight')) - Number(down('KeyA','ArrowLeft')),
+				throttle: axis(['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown']),
+				steer: axis(['KeyD', 'ArrowRight'], ['KeyA', 'ArrowLeft']),
 				sprint: down('ShiftLeft','ShiftRight'),
 				brake: down('Space'),
 				aim, attack: attack || down('KeyF'),

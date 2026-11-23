@@ -3,19 +3,10 @@
 <head>
 	<meta charset=utf-8>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-9gWx/Xv8BRWXgEnYF/y/n6ADyMLxlsoB47ODKiPSE1Q='; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; style-src 'self' 'unsafe-inline'">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; style-src 'self' 'unsafe-inline'">
 	<link rel=icon href="data:,">
 	<link rel=stylesheet href=./style.css>
 	<title>Salt Relay</title>
-	<script type=importmap>
-		{"imports":{
-			"geometry":"./src/render/geometry.js",
-			"city-layout":"./src/world/cityLayout.js",
-			"weapons":"./src/combat/weapons.js",
-			"story-jobs":"./src/missions/storyJobs.js",
-			"radio-stations":"./src/audio/radioStations.js"
-		}}
-	</script>
 </head>
 <body>
 	<canvas id=view aria-label="Vesper Bay"></canvas>
@@ -31,6 +22,7 @@
 		<aside class="vitals hud-panel">
 			<div class="split pursuit"><strong id=wanted></strong><span id=stars><b></b><span></span></span></div>
 			<b id=pursuit-label></b>
+			<progress id=evasion max=1 value=0 aria-label="Evasion progress" hidden></progress>
 			<div class="split cash"><span class=eyebrow>CASH</span><strong id=money></strong></div>
 			<section id=dispatch-panel hidden><h3>POLICE DISPATCH</h3><div id=dispatch-roster></div></section>
 		</aside>
@@ -44,7 +36,7 @@
 		</aside>
 		<div class="equipment hud-panel">
 			<div class=eyebrow id=equip-name></div>
-			<div class="split car-telemetry"><strong id=equip-value></strong><b id=equip-label></b></div>
+			<div class=split><strong id=equip-value></strong><b id=equip-label></b></div>
 			<div id=radio></div>
 			<div id=crew></div>
 		</div>
@@ -70,8 +62,8 @@
 				<button id=continue>Continue</button>
 				<button id=start class=quiet>New Story</button>
 				<button id=title-load class=quiet>Load</button>
-				<button id=title-help class=quiet>Controls</button>
-				<button id=settings class=quiet>Settings</button>
+				<button data-menu=help class=quiet>Controls</button>
+				<button data-menu=settings class=quiet>Settings</button>
 			</div>
 		</div>
 		<aside class=title-saves><h2>Save slots</h2><div id=title-slots class=slots></div></aside>
@@ -81,7 +73,7 @@
 		<header class="split atlas-header">
 			<h2 id=atlas-title>Vesper Bay</h2>
 			<nav id=atlas-tabs aria-label="Pause atlas"></nav>
-			<button id=resume><kbd>Esc</kbd> Resume</button>
+			<button data-back><kbd>Esc</kbd> Resume</button>
 		</header>
 		<div class=atlas-layout>
 			<div id=atlas-page></div>
@@ -97,14 +89,22 @@
 	<section id=overlay hidden aria-labelledby=overlay-title>
 		<div class=sheet>
 			<h2 id=overlay-title></h2>
-			<div id=help-panel hidden>
-				<dl id=bindings></dl>
-				<button id=help-back>Back</button>
+			<div data-panel=help hidden>
+				<dl id=bindings>
+					<dt>Move / drive<dd>WASD or arrows
+					<dt>Sprint / handbrake<dd>Shift / Space
+					<dt>Talk / enter / exit<dd>E
+					<dt>Aim / center<dd>Right mouse / C
+					<dt>Attack / equip / reload<dd>LMB or F / 1–7 or Q / R
+					<dt>Radio / crew<dd>V / X, Z, B
+					<dt>Map / pause<dd>M / Esc
+				</dl>
+				<button data-back>Back</button>
 			</div>
-			<div id=settings-panel hidden><button id=audio-button class=quiet>Sound on</button>
-				<button id=orbit-button class=quiet>City camera on</button><button id=settings-back>Back</button></div>
-			<div id=shop-panel hidden><p id=shop-cash></p><div id=shop-items></div><button id=shop-back>Back to game</button></div>
-			<div id=busted-panel hidden><p>Retry with your upgrades intact.</p><button id=retry>Retry checkpoint</button></div>
+			<div data-panel=settings hidden><button id=audio-button class=quiet>Sound on</button>
+				<button id=orbit-button class=quiet>City camera on</button><button data-back>Back</button></div>
+			<div data-panel=shop hidden><p id=shop-cash></p><div id=shop-items></div><button data-back>Back to game</button></div>
+			<div data-panel=busted hidden><button id=retry>Retry checkpoint</button></div>
 		</div>
 	</section>
 	<script type=module src=./src/main.js></script>

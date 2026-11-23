@@ -1,4 +1,4 @@
-import {CONTACTS} from 'story-jobs'
+import {CONTACTS} from '../missions/storyJobs.js'
 
 export function drawPortrait(canvas, name) {
 	const ctx = canvas.getContext('2d')

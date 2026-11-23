@@ -1,5 +1,5 @@
-import {disturbCrowd} from '../ai/pedestrianAI.js'
-import {WEAPONS, weaponById} from 'weapons'
+import {warnCrowd} from '../ai/crowdReaction.js'
+import {WEAPONS, weaponById} from '../combat/weapons.js'
 import {renderShot, targetInArc} from '../combat/projectiles.js'
 
 function strike(game, target, amount) {
@@ -68,6 +68,6 @@ export function updateCombat(game, controls, dt) {
 	supply.rounds--
 	renderShot(game, player, heading, hit, weapon.reach, shotgun, player.car ? 1.2 : 1.46)
 	if (!hit?.guard) player.onCrime(hit?.mode === 'police' ? .73 : .22)
-	disturbCrowd(people, player.x, player.z, 24)
+	warnCrowd(people, player.x, player.z, 24)
 	audio.effect(shotgun || weapon.id === 'heavy' ? 'blast' : 'shot')
 }

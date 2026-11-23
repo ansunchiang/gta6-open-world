@@ -1,5 +1,6 @@
 import {createCharacter, animateCharacter} from '../player/characterModel.js'
-import {advance, angle, bearing, distance, turn} from 'geometry'
+import {advance, bearing, distance, turn} from '../render/geometry.js'
+import {reactToAlarm, watchTraffic} from './crowdReaction.js'
 
 const outfits = ['#db836b', '#ecbc79', '#609b97', '#e3d7af', '#ae8196', '#8197b4', '#aa975e', '#bd6862']
 
@@ -38,45 +39,33 @@ export function createPedestrians(scene, city, random) {
 	return people
 }
 
-export function disturbCrowd(people, x, z, radius) {
-	for (const person of people) {
-		if (Math.hypot(person.x - x, person.z - z) < radius) {
-			person.panic = 4.4
-			person.flee = angle(person.x - x, person.z - z)
-		}
-	}
-}
-
 export function updatePedestrians(people, player, city, dt, clock) {
+	const {car} = player
+	const danger = car && Math.abs(car.speed) > 7 && !(car.lift > .9)
 	for (const person of people) {
-		const nearby = distance(person, player)
-		person.model.node.visible = nearby < 128
+		const range = distance(person, player)
+		const drawn = person.model.node.visible = range < 128
 		if (person.down > 0) {
-			person.down -= dt
-			if (person.down <= 0) person.health = 100
-			if (person.model.node.visible) animateCharacter(person, clock, 0)
+			person.down = Math.max(0, person.down - dt)
+			if (!person.down) person.health = 100
+			if (drawn) animateCharacter(person, clock, 0)
 			continue
 		}
-		let pace = person.pace ?? 0
-		const speed = Math.abs(player.car?.speed ?? 0)
-		if (speed > 4 && nearby < 5.5 && !person.panic) {
-			person.panic = 2.8
-			person.flee = bearing(player, person)
+		if (range < 28) watchTraffic(person, car)
+		let pace = reactToAlarm(person, city, dt)
+		if (!pace && person.route) {
+			const {route} = person
+			if (distance(person, route[person.routeIndex]) < .47) person.routeIndex = (person.routeIndex + 1) % route.length
+			const heading = bearing(person, route[person.routeIndex])
+			person.heading += turn(person.heading, heading) * Math.min(1, dt * 8)
+			pace = person.pace
 		}
-		if (person.panic > 0) {
-			person.panic = Math.max(0, person.panic - dt)
-			person.heading += turn(person.heading, person.flee) * Math.min(1, dt * 6)
-			pace = 4.3
-		} else if (person.route) {
-			const target = person.route[person.routeIndex]
-			if (distance(target, person) < .47) person.routeIndex = (person.routeIndex + 1) % person.route.length
-			person.heading += turn(person.heading, bearing(person, person.route[person.routeIndex])) * Math.min(1, dt * 8)
-		}
-		if (pace > 0 && advance(city, person, pace * dt, .23) && person.panic) person.flee += 1.1
-		if (speed > 7 && nearby < 1.7 && !person.down) {
+		if (pace && advance(city, person, pace * dt, .23) && person.panic) person.flee += 1.1
+		if (danger && range < 1.35 && distance(person, player) < 1.45) {
 			person.down = 8
+			person.alarm = null
 			player.onCrime(.82)
 		}
-		if (person.model.node.visible) animateCharacter(person, clock, pace)
+		if (drawn) animateCharacter(person, clock, pace)
 	}
 }

@@ -1,9 +1,9 @@
-import {distance} from 'geometry'
+import {distance} from '../render/geometry.js'
 
 export const CREW = [
-	['ROOK', 'Armor drop', 'X', 100, 'Recover 42 armor.'],
-	['SERA QUAY', 'Blackout', 'Z', 85, 'Block tracking for 7 seconds.'],
-	['DEX RILL', 'Tyre burst', 'B', 65, 'Slow a nearby patrol car.'],
+	['ROOK', 'Armor drop', 'X', 100, '+42 armor.'],
+	['SERA QUAY', 'Blackout', 'Z', 85, 'Jam tracking for 7s.'],
+	['DEX RILL', 'Tyre burst', 'B', 65, 'Slow a nearby patrol.'],
 ].map(([name, label, key, wait, detail]) => ({name, label, key, wait, detail}))
 
 export function callCrew(game, presses) {
@@ -14,8 +14,8 @@ export function callCrew(game, presses) {
 	else if (!police.stars) return
 	else if (i === 1) police.blackout = clock + 7
 	else {
-		const unit = police.units.reduce((best, car) => distance(car, player) < Math.min(40, best ? distance(best, player) : Infinity) ? car : best, null)
-		if (!unit) return
+		const unit = police.units.toSorted((a, b) => distance(a, player) - distance(b, player))[0]
+		if (!unit || distance(unit, player) >= 40) return
 		unit.burstUntil = clock + 12
 		unit.speed *= .32
 		game.effects.sparks(unit.x, .35, unit.z)

@@ -1,5 +1,5 @@
 :root {
-	color-scheme:dark; font:16px system-ui; color:#fff4db;
+	color-scheme:dark; font-family:system-ui; color:#fff4db;
 	--ink:#102a31; --card:#132b30f5; --atlas:#18404a; --line:#fff3;
 	--mint:#87efd0; --gold:#ffd384; --label:800 13px ui-monospace,monospace;
 }
@@ -8,11 +8,10 @@ body,h1,h2,h3,p,dd {margin:0}
 [hidden] {display:none!important}
 #view,#hud,#title,#overlay,#atlas {position:fixed; inset:0}
 #view {width:100%; height:100%}
-.split {display:flex; justify-content:space-between; align-items:center; gap:6px}
+.split,.atlas-row {display:flex; justify-content:space-between; align-items:center; gap:6px}
 button,kbd {color:var(--ink); background:var(--gold); font-weight:850}
-button {border:1px solid var(--line); padding:9px 15px; font-size:16px; cursor:pointer}
-button.quiet,#atlas-tabs button {background:#21434b; color:inherit}
-button:hover {filter:brightness(1.2)}
+button {border:0; padding:9px 15px; font-size:16px; cursor:pointer}
+button.quiet,#atlas-tabs button {background:#21434b; color:#fff4db}
 button:focus-visible {outline:3px solid var(--mint)}
 button:disabled {opacity:.55}
 kbd {padding:2px 4px}
@@ -22,136 +21,126 @@ progress::-webkit-progress-value {background:var(--meter,var(--gold))}
 
 #hud {pointer-events:none; --gap:clamp(12px,1.64vw,21px)}
 .hud-panel,.slot,.sheet {background:var(--card); border:1px solid var(--line)}
-.job,.radar,.vitals,.equipment,.bottom-band,.toast,#waypoint,#reticle,#interaction,#damage {position:absolute}
-.job,.radar,.vitals,.equipment {padding:10px 12px}
+.hud-panel,.bottom-band,#waypoint,#reticle,#interaction,#damage {position:absolute}
+.bottom-band .hud-panel {position:static}
+.job,.radar,.vitals,.equipment {padding:10px}
 .job,.radar {left:var(--gap)}
 .vitals,.equipment {right:var(--gap); width:258px}
 .job,.vitals,.toast {top:var(--gap)}
 .radar,.equipment,.bottom-band {bottom:var(--gap)}
 .radar,.equipment {border-bottom:4px solid var(--mint)}
 .job {width:min(320px,39vw); border-top:4px solid var(--gold)}
-.job h2 {font-size:34px; line-height:1; letter-spacing:-.045em; margin:6px 0}
-.job p {font-size:18px; margin-bottom:7px}
-.job p,.dialogue p,.map-key {font-weight:800}
-.eyebrow,#job-next,.stage-line,.unit,.meter,.respect,#pursuit-label,#radio,#equip-label,#weapon-bar header,#speaker {font:var(--label)}
-.eyebrow,.stage-line,#weapon-bar header {color:var(--gold)}
-#job-kind,#standing {display:inline-block; color:var(--ink); background:var(--gold); padding:3px 6px; border-radius:3px}
-#job-kind[data-side=true],#atlas-tabs [aria-pressed=true] {background:var(--mint)}
-#job-next:empty,.stage-line:has(b:empty),.slot span:empty {display:none}
+.job h2 {font-size:34px; line-height:1; margin:6px 0}
+.job p {margin-bottom:7px}
+.eyebrow,.stage-line,#weapon-bar header {font:var(--label); color:var(--gold)}
+#job-kind,#standing {display:inline-block; color:var(--ink); background:var(--gold); padding:3px 6px}
+#job-kind[data-side=true] {background:var(--mint)}
+#job-next:empty,.slot span:empty {display:none}
 .pursuit {background:#c4dfd0; color:#49292b; padding:5px 7px}
 .pursuit:has([data-active=true]) {background:#ff655f}
-#wanted {font:bold italic 21px system-ui; letter-spacing:-.05em}
+#wanted {font:bold italic 21px system-ui}
 #stars {font:950 24px/1 system-ui; white-space:nowrap}
-#stars b {color:#fff8ae; text-shadow:0 1px 2px #681f28}
-#pursuit-label {display:block; margin:5px 0; color:#ffd0a1}
-.cash,.respect,#radio,#crew {border-top:1px solid var(--line); padding-top:5px}
-.cash strong {font-size:26px}
-#dispatch-panel h3 {margin:7px 0 4px; color:#ffb6a2; font:var(--label)}
-.unit {display:grid; align-items:center; gap:4px; grid-template-columns:1fr 31px 96px; min-height:23px}
-.unit small,.meter span {text-align:right}
-.unit span {text-align:center; padding:2px; color:var(--ink); background:var(--tactic,#9ce8fb); font-size:11px}
-.unit:is([data-tactic=RAMMING],[data-tactic=ROADBLOCK]) {--tactic:#ff9b8f}
-.unit[data-tactic=FLANKING] {--tactic:var(--gold)}
-.unit[data-tactic=SPOTLIGHT] {--tactic:#d6beff}
+#stars b {color:#fff8ae}
+#pursuit-label {display:block; margin:5px 0; color:#ffd0a1; font:var(--label)}
+#evasion {--meter:var(--mint); height:4px}
+.cash,.respect,#crew {border-top:1px solid var(--line); padding-top:5px}
+#money {font-size:26px}
+#dispatch-panel h3,.unit {font:var(--label)}
+#dispatch-panel h3 {margin:7px 0 4px; color:#ffb6a2}
+.unit {display:grid; grid-template-columns:1fr 31px 96px; padding:2px 0}
+.unit span {text-align:center; color:var(--ink); background:#9ce8fb}
+.unit:is([data-tactic=ROADBLOCK],[data-tactic=RAMMING]) span {background:#ff9b8f}
 
 .radar {width:196px}
-#clock,#standing,.respect span {font:800 11px ui-monospace,monospace}
-#standing,.respect,#job-next {margin-top:5px}
-#minimap {display:block; width:min(135px,100%); margin:6px auto; border-radius:50%; border:2px solid var(--mint)}
-.meter {display:grid; align-items:center; grid-template-columns:29px 1fr 25px; gap:4px; --meter:#a8e981}
+.radar :is(time,b,span) {font-size:12px}
+#standing {margin-top:5px}
+#minimap {display:block; width:135px; margin:6px auto; border-radius:50%}
+.meter {display:grid; grid-template-columns:29px 1fr 25px; gap:4px; --meter:#a8e981}
 .armor {--meter:#83dbff}
-.car-telemetry {align-items:baseline}
 #equip-value {font-size:46px; line-height:1; letter-spacing:-.06em}
-#radio {margin:5px 0}
-#crew,.weapon-strip {display:grid; gap:4px; text-align:center}
-#crew {grid-template-columns:repeat(3,1fr)}
-#crew div {position:relative; background:#26474b; padding-bottom:3px; font-size:12px}
-#crew canvas {width:100%; height:43px; object-fit:cover; object-position:center 31%}
+#radio,#equip-label {font:var(--label)}
+#crew,.weapon-strip {display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:4px; text-align:center}
+#crew div {position:relative; background:#26474b; font-size:12px}
+#crew canvas {display:block; width:100%; height:43px; object-fit:cover}
 #crew kbd {position:absolute; top:3px; left:3px}
-#crew canvas,#crew b,#crew span,.weapon-strip canvas,.stat-grid b {display:block}
-#crew span,#speaker,#equip-label,#money,#clock,#save-feedback,#bindings dd,.stat-grid span {color:var(--mint)}
+#weapon-bar canvas,.stat-grid b {display:block}
+#crew span {display:block; color:var(--mint)}
+#speaker,#money,#save-feedback {color:var(--mint)}
 .bottom-band,#interaction,.toast {left:50%; translate:-50%}
 .bottom-band {width:min(488px,40vw); display:grid; gap:5px}
 .dialogue {display:flex; align-items:center; gap:9px; padding-right:6px; border-left:4px solid var(--mint)}
 #weapon-bar {padding:4px 6px 6px}
 #weapon-bar header {margin-bottom:4px}
-.weapon-strip {grid-template-columns:repeat(7,1fr)}
-.weapon-strip div {background:#fff2; padding:3px 0; font-size:10px; font-weight:800; white-space:nowrap}
+.weapon-strip div {background:#fff2; padding:3px 0; font:bold 10px system-ui}
 .weapon-strip canvas {margin:auto; width:32px}
-.weapon-strip .selected {background:#b55e32; outline:1px solid var(--gold)}
+.weapon-strip .selected {background:#b55e32}
 .weapon-strip .locked {opacity:.5}
-#interaction,#waypoint,.toast {padding:6px 10px; background:var(--card); font-weight:850}
+#interaction,#waypoint,.toast {padding:6px 10px; background:var(--card)}
 #interaction {bottom:160px}
-#interaction span {margin-left:7px}
+#interaction kbd {margin-right:7px}
 #waypoint {translate:-50% -115%; color:var(--gold)}
 #reticle {top:50%; left:50%; translate:-50% -50%; width:16px; aspect-ratio:1; border:1px solid; border-radius:50%}
-#damage {inset:0; box-shadow:inset 0 0 100px 30px #f3434baf; opacity:0}
+#damage {inset:0; box-shadow:inset 0 0 100px #f3434baf; opacity:0}
 #error-panel {position:fixed; inset:30% 20% auto; padding:18px}
 
 .menu {display:flex; justify-content:space-between; align-items:end; gap:20px; padding:5vh 5vw;
 	background:linear-gradient(90deg,#092b33df,transparent 61%),linear-gradient(0deg,#09252ded,transparent 51%)}
 .menu h1 {font:1000 italic clamp(76px,13vw,190px)/.77 Impact,sans-serif; letter-spacing:-.07em; text-shadow:4px 8px #11333d}
 .menu h1 em {display:block; color:var(--gold)}
-.subtitle {margin:36px 0 13px; color:var(--mint); font-size:26px; font-weight:950; letter-spacing:.28em}
-.subtitle,.menu-actions button,.title-saves h2,.slot span,#atlas-tabs button,.stat-grid span {text-transform:uppercase}
-.menu-actions,.slots {display:grid; gap:6px}
+.subtitle {margin:36px 0 13px; color:var(--mint); font:bold 26px system-ui; letter-spacing:.28em}
+.menu button,.title-saves h2,#atlas-tabs button {text-transform:uppercase}
+.menu-actions,.slots,#shop-items {display:grid; gap:6px}
 .menu-actions {grid-template-columns:repeat(2,1fr)}
-.menu-actions button,.slot,#shop-items button {text-align:left}
-#continue,#career-stats,#district-bars progress,#shop-items small {grid-column:1/-1}
+.slot,#shop-items button {text-align:left}
+#continue,#career-stats,#district-bars progress {grid-column:1/-1}
 .title-saves {width:min(315px,40vw)}
 .title-saves h2 {margin-bottom:8px}
 .slot {display:grid; gap:3px; color:inherit; border-left:4px solid var(--mint)}
-.slot strong {font-size:22px; line-height:1.05}
-.slot span,.stat-grid span {font:var(--label)}
-.slot span {color:var(--mint)}
-.slot span:last-child {color:var(--gold); font-size:16px}
+.slot strong {font-size:22px}
+.slot span {font:var(--label); color:var(--mint)}
+.slot span:last-child {color:var(--gold)}
 
 #atlas {overflow:auto; padding:24px 3vw; background:#102e37}
 .atlas-header {margin-bottom:14px}
-.atlas-header h2,.sheet h2 {font-size:43px; letter-spacing:-.045em}
+.atlas-header h2,.sheet h2 {font-size:43px}
 #atlas-tabs {display:flex; gap:4px}
-#atlas-tabs [aria-pressed=true] {color:var(--ink)}
+#atlas-tabs [aria-pressed=true] {color:var(--ink); background:var(--mint)}
 .atlas-layout {display:grid; grid-template-columns:2.25fr minmax(250px,1fr); gap:9px}
-#atlas-page,.atlas-career,.stat-grid div {background:var(--atlas); border:1px solid var(--line)}
-#full-map {display:block; width:100%; height:clamp(380px, calc(100vh - 250px), 610px); object-fit:contain; background:#176b87}
-.map-key {display:flex; flex-wrap:wrap; justify-content:space-around; padding:9px; color:var(--gold)}
-.map-key span:nth-child(even),#checklist b {color:var(--mint)}
+#atlas-page,.atlas-career,.stat-grid div {background:var(--atlas)}
+#atlas-page>canvas {display:block; width:100%; height:clamp(380px,70vh,610px); object-fit:contain; background:#176b87}
+.map-key {text-align:center; padding:9px; color:var(--gold)}
+#checklist .atlas-row {padding:4px 0; color:var(--mint)}
 .atlas-career,.atlas-content {padding:15px}
-.atlas-content h3,.atlas-content p,.completion,.sheet h2 {margin-bottom:10px}
+.atlas-content h3,.completion,.sheet h2 {margin-bottom:10px}
 .completion {display:flex; gap:14px; align-items:center}
 #completion-ring,#completion-ring b {display:grid; place-items:center; border-radius:50%; aspect-ratio:1}
 #completion-ring {width:88px; background:conic-gradient(var(--mint) var(--percent),#345c63 0)}
 #completion-ring b {width:71px; background:var(--atlas); font-size:27px}
 #checklist {margin-bottom:14px}
-#district-bars {margin-top:7px}
-#checklist div,#district-bars div,#bindings,#shop-items button {display:grid; grid-template-columns:1fr auto; align-items:center}
-#checklist div,.atlas-row {padding:4px 0; border-bottom:1px solid var(--line)}
-#checklist div,#district-bars div {font-weight:800}
+#district-bars div,#bindings,#shop-items button {display:grid; grid-template-columns:1fr auto}
 #district-bars b {font:var(--label); color:var(--meter)}
-#district-bars progress {margin:3px 0 6px}
 .stat-grid {display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
 .stat-grid div {padding:8px 14px; border-top:3px solid var(--mint)}
-.stat-grid b {font-size:26px; line-height:1.05}
-.atlas-row {display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0}
+.stat-grid b {font-size:26px}
+.atlas-row {padding:9px 0; border-bottom:1px solid var(--line)}
 .crew-row>div {flex:1}
-#save-feedback {min-height:1.3em}
+#save-feedback {height:1.5em}
 
 #overlay {display:grid; place-items:center; background:#081b23a0}
 .sheet {width:min(500px,92vw); max-height:90vh; overflow:auto; padding:20px}
-#bindings,#shop-items button {gap:8px; padding:7px}
-#shop-items {display:grid; gap:5px; margin:8px 0}
+#shop-items {margin:8px 0}
 @media(max-width:950px) {
 	.vitals,.equipment {width:195px}
 	.radar {width:154px}
 	#wanted,#stars {font-size:17px}
 	.unit {grid-template-columns:1fr 23px 70px; font-size:10px}
-	.unit span,#crew div,.weapon-strip div {font-size:9px}
+	.unit span,.weapon-strip div {font-size:9px}
 	.job h2,#equip-value {font-size:26px}
 	.atlas-header {flex-wrap:wrap}
 	#atlas-tabs button {padding:6px 8px}
 }
 @media(max-width:680px) {
 	.atlas-layout {grid-template-columns:1fr}
-	#full-map {height:auto}
+	#atlas-page>canvas {height:auto}
 	.stat-grid {grid-template-columns:repeat(2,1fr)}
 }

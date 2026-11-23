@@ -1,4 +1,4 @@
-import {bearing, distance, offset, turn} from 'geometry'
+import {bearing, distance, offset, turn} from '../render/geometry.js'
 import {lineClear} from '../ai/policeAI.js'
 
 export function targetInArc(game, reach, heading, arc) {

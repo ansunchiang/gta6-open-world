@@ -1,7 +1,7 @@
-import {CONTACTS, STORY} from 'story-jobs'
+import {CONTACTS, STORY} from './storyJobs.js'
 import {deployGuards} from '../ai/guardAI.js'
 import {spawnPerson} from '../ai/pedestrianAI.js'
-import {distance} from 'geometry'
+import {distance} from '../render/geometry.js'
 import {respectRank} from '../progression/respect.js'
 import {earnCash} from '../progression/careerStats.js'
 
@@ -10,12 +10,10 @@ export function createMissionManager(game) {
 	const {player, audio, cars, scene, police} = game
 	const plan = () => STORY[chapter]
 	const step = () => plan()?.steps[stage - 1]
-	const rankOK = job => respectRank(player.rep).level >= job.rank
-	const opponents = () => game.guards.filter(guard => !guard.down).length
-	function point(current, job) {
-		if (!current) return job.anchor
-		return current.vehicle === 'courier' ? cars[0] : current.point
-	}
+	const ready = () => respectRank(player.rep).level >= plan().rank
+	const opponents = () => game.guards.filter(guard => !guard.down)
+	const point = current => !current ? plan().anchor : current.vehicle === 'courier' ? cars[0] : current.point
+	const inRide = (ride, vehicle) => vehicle === 'courier' ? ride === cars[0] : ride?.type === vehicle
 
 	function setChapter(index) {
 		chapter = Math.min(STORY.length, index)
@@ -33,14 +31,14 @@ export function createMissionManager(game) {
 		const job = plan()
 		if (!job) return {title: 'The city is yours', task: 'Explore or run side jobs'}
 		const current = step()
-		const guards = current?.guards && current.type !== 'hold' && opponents()
+		const guards = current?.guards && current.type !== 'hold' && opponents().length
 		return {
 			title: job.title, contact: job.contact, number: chapter + 1, total: STORY.length,
 			stage: stage + 1, stages: job.steps.length + 1, remaining,
-			task: !rankOK(job) ? 'Earn respect to reach rank ' + job.rank : !current ? 'Meet ' + job.contact :
+			task: !ready() ? 'Earn respect to reach rank ' + job.rank : !current ? 'Meet ' + job.contact :
 				guards ? 'Clear security · ' + guards + ' left' :
 				current.seconds ? current.task + ' · ' + Math.max(0, Math.ceil(current.seconds - held)) + 's' : current.task,
-			point: point(current, job),
+			point: point(current),
 			next: job.steps[stage]?.task ?? 'Job payout',
 		}
 	}
@@ -70,12 +68,12 @@ export function createMissionManager(game) {
 	function prompt() {
 		const job = plan()
 		if (!job || player.theft || Math.abs(player.car?.speed ?? 0) > 4) return ''
-		const current = step(), site = point(current, job)
+		const current = step(), site = point(current)
 		if (!site || distance(player, site) > (current?.vehicle ? 8 : 5.2)) return ''
-		if (!stage) return !player.car && rankOK(job) ? 'Talk to ' + job.contact : ''
+		if (!stage) return !player.car && ready() ? 'Talk to ' + job.contact : ''
 		if (current.type !== 'interact' || current.foot && player.car ||
-				current.vehicle && current.vehicle !== player.car?.type ||
-				current.guards && opponents()) return ''
+				current.vehicle && !inRide(player.car, current.vehicle) ||
+				current.guards && opponents().length) return ''
 		return current.task
 	}
 
@@ -99,7 +97,7 @@ export function createMissionManager(game) {
 			return
 		}
 		const car = player.car ?? player.theft?.car
-		if (current.type === 'steal' && car && (current.vehicle === 'courier' ? car === cars[0] : car.type === current.vehicle)) {
+		if (current.type === 'steal' && inRide(car, current.vehicle)) {
 			if (current.heat) player.onCrime(current.heat)
 			advance()
 		} else if (current.type === 'evade' && police.heat <= 0) advance()

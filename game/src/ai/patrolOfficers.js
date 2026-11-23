@@ -1,4 +1,4 @@
-import {bearing, distance, offset} from 'geometry'
+import {bearing, distance, offset} from '../render/geometry.js'
 import {animateCharacter} from '../player/characterModel.js'
 import {spawnPerson} from './pedestrianAI.js'
 import {renderShot} from '../combat/projectiles.js'
@@ -12,13 +12,14 @@ export function deployOfficer(game, car, x, z) {
 }
 
 export function poseOfficer(game, officer, dt) {
-	const {player, city, clock, audio} = game
-	officer.heading = bearing(officer, player)
-	officer.aim = !officer.down && distance(officer, player) < 28 && lineClear(city, officer, player, 1.4)
+	const {player, police, city, clock} = game
+	officer.aim = !officer.down && clock >= police.blackout &&
+		distance(officer, player) < 28 && lineClear(city, officer, player, 1.4)
+	if (officer.aim) officer.heading = bearing(officer, player)
 	if (officer.aim && (officer.fire -= dt) <= 0) {
 		officer.fire = 2.8
 		renderShot(game, officer, officer.heading, player, 28)
-		audio.effect('shot')
+		game.audio.effect('shot')
 		game.damage(5)
 	}
 	animateCharacter(officer, clock, 0)

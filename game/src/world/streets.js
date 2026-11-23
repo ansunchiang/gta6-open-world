@@ -1,13 +1,14 @@
-import {GRID, LAND, southBank} from 'city-layout'
-import {T, GeometryBatch, addMesh, cylinder, texture} from 'geometry'
+import {GRID, LAND, southBank} from './cityLayout.js'
+import {T, GeometryBatch, addMesh, cylinder, texture} from '../render/geometry.js'
 import {createRandom} from '../random.js'
 
 function asphalt() {
 	const map = texture(64, 64, ctx => {
-		const pixels = ctx.createImageData(64, 64), random = createRandom(417)
-		for (let i = 0; i < pixels.data.length; i += 4) {
+		const pixels = ctx.createImageData(64, 64)
+		const random = createRandom(417)
+		for (let i = 0; i < 4096; i++) {
 			const grey = 93 + Math.floor(random() * 13)
-			pixels.data.set([grey, grey, grey + 6, 255], i)
+			pixels.data.set([grey, grey, grey + 6, 255], i * 4)
 		}
 		ctx.putImageData(pixels, 0, 0)
 	})
@@ -25,7 +26,9 @@ export function buildStreets(scene) {
 	for (const north of [true, false]) for (const road of GRID) {
 		function mark(color, across, along, width, length) {
 			const x = north ? across : along, z = north ? along : across
-			if (z < southBank(x) - 2) marks.box(color, x,-.021,z, north ? width : length,.01,north ? length : width)
+			if (z >= southBank(x) - 2) return
+			const [w, d] = north ? [width, length] : [length, width]
+			marks.box(color, x, -.021, z, w, .01, d)
 		}
 		for (const crossing of GRID) {
 			for (const side of [-1, 1]) {
@@ -35,11 +38,11 @@ export function buildStreets(scene) {
 				}
 				for (let tick = -7; tick <= 7; tick += 1.4) mark('#d5d1c4', road + tick, crossing + side * 10.3, .56, 2)
 			}
-			const x = north ? road + 9.5 : crossing + 17
-			const z = north ? crossing + 17 : road + 9.5
+			const edge = road + 9.5, corner = crossing + 17
+			const [x, z] = north ? [edge, corner] : [corner, edge]
 			if (z > southBank(x) || Math.abs(x) > 194) continue
-			lamps.add(cylinder(.07,.11), '#414950', x,2.36,z, 1,4.7,1)
-			lamps.box('#d9bc97', x,4.6,z, .57,.15,.53)
+			lamps.add(cylinder(.07, .11), '#414950', x, 2.36, z, 1, 4.7, 1)
+			lamps.box('#d9bc97', x, 4.6, z, .57, .15, .53)
 		}
 	}
 	marks.make(scene, {}, false).receiveShadow = true

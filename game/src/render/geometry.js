@@ -87,6 +87,14 @@ export class GeometryBatch {
 		this.add(cube, color, x, y, z, sx, sy, sz, 0, ry)
 	}
 
+	boxes(rows) {
+		for (const dimensions of rows) this.box(...dimensions)
+	}
+
+	ramp(color, x, y, z, width, height, depth, pitch) {
+		this.add(cube, color, x, y, z, width, height, depth, pitch)
+	}
+
 	ball(color, x, y, z, sx, sy, sz) {
 		this.add(sphere, color, x, y, z, sx, sy, sz)
 	}

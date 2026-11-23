@@ -1,4 +1,4 @@
-import {T, addMesh, cylinder, texture} from 'geometry'
+import {T, addMesh, cylinder, texture} from '../render/geometry.js'
 
 const signCache = new Map()
 const signPlane = new T.PlaneGeometry(1, 1)
@@ -21,22 +21,21 @@ export function streetSign(scene, name, x, y, z, width, height, yaw, color = '#f
 }
 
 export function decoBuilding(batch, lights, x, z, w, d, h, body, tall, random) {
-	const trim = tall ? '#a9c3bd' : '#f1d6ae'
-	const glass = tall ? '#648a9f' : '#568590'
-	batch.box(body, x,h / 2,z, w,h,d)
-	batch.box(trim, x,h + .08,z, w + .65,.37,d + .65)
-	batch.box(body, x,h + .53,z, w * .88,.76,d * .88)
+	const [trim, glass, pitch] = tall ? ['#a9c3bd', '#648a9f', 2.7] : ['#f1d6ae', '#568590', 2.85]
+	const tier = (color, y, width, height, depth) => batch.box(color, x, y, z, width, height, depth)
+	tier(body, h / 2, w, h, d)
+	tier(trim, h + .08, w + .65, .37, d + .65)
+	tier(body, h + .53, w * .88, .76, d * .88)
 	if (tall) {
-		batch.box(trim, x,h + 1.4,z, w * .65,1.35,d * .62)
-		batch.box(glass, x,h + 2.25,z, w * .45,.6,d * .43)
-		lights.box('#ff986c', x,h + 2.56,z, .23,.25,.23)
+		tier(trim, h + 1.4, w * .65, 1.35, d * .62)
+		tier(glass, h + 2.25, w * .45, .6, d * .43)
+		lights.box('#ff986c', x, h + 2.56, z, .23, .25, .23)
 	} else {
-		batch.box(trim, x,h - .38,z, w + .37,.12,d + .37)
-		batch.box(trim, x,3.15,z, w + .5,.18,d + .5)
-		batch.box(trim, x,1.12,z, w + .13,1.92,d + .13)
+		tier(trim, h - .38, w + .37, .12, d + .37)
+		tier(trim, 3.15, w + .5, .18, d + .5)
+		tier(trim, 1.12, w + .13, 1.92, d + .13)
 	}
 
-	const pitch = tall ? 2.7 : 2.85
 	const floors = Math.floor((h - 3.2) / pitch)
 	for (const alongX of [true, false]) {
 		const span = alongX ? w : d
@@ -49,7 +48,7 @@ export function decoBuilding(batch, lights, x, z, w, d, h, body, tall, random) {
 				const cz = alongX ? z + side * (d / 2 + .025) : z + along
 				const width = gap * (tall ? .83 : .59)
 				const panel = (color, y, height, wide = width, depth = .14) =>
-					batch.box(color, cx,y,cz, alongX ? wide : depth,height,alongX ? depth : wide)
+					batch.box(color, cx, y, cz, alongX ? wide : depth, height, alongX ? depth : wide)
 				if (tall) panel(trim, h / 2, h - 2, width + .16, .08)
 				else panel('#344859', 1.73, 2.26)
 				for (let floor = 0; floor < floors; floor++) {
@@ -63,18 +62,19 @@ export function decoBuilding(batch, lights, x, z, w, d, h, body, tall, random) {
 }
 
 export function relayCrown(batch, lights, x, y, z) {
-	batch.add(cylinder(.3, .7), '#d6b89a', x,y + 4,z, 3.5,8,3.5)
-	batch.add(cylinder(.85, 1, 12), '#5596a7', x,y + 8.1,z, 5.6,2.5,5.6)
-	batch.box('#51616b', x,y + 12.5,z, .18,8,.18)
-	lights.ball('#ff526b', x,y + 16.6,z, .25,.25,.25)
+	batch.add(cylinder(.3, .7), '#d6b89a', x, y + 4, z, 3.5, 8, 3.5)
+	batch.add(cylinder(.85, 1, 12), '#5596a7', x, y + 8.1, z, 5.6, 2.5, 5.6)
+	batch.box('#51616b', x, y + 12.5, z, .18, 8, .18)
+	lights.ball('#ff526b', x, y + 16.6, z, .25, .25, .25)
 }
 
 export function palm(batch, x, z, height, phase) {
-	batch.add(cylinder(.55,.74), '#79634b', x,height / 2,z, .44,height,.44)
+	batch.add(cylinder(.55, .74), '#79634b', x, height / 2, z, .44, height, .44)
 	for (let i = 0; i < 10; i++) {
 		const length = height * (.40 + (i % 4) * .03)
 		const yaw = i * 2.4 + phase
-		batch.add(leaf, i % 2 ? '#73964c' : '#406e42', x,height,z, length,length,length, .21 * (i % 3), yaw)
+		const color = i % 2 ? '#73964c' : '#406e42'
+		batch.add(leaf, color, x, height, z, length, length, length, .21 * (i % 3), yaw)
 	}
 }
 

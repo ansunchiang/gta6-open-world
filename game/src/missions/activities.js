@@ -1,5 +1,5 @@
-import {PLACES} from 'city-layout'
-import {distance} from 'geometry'
+import {PLACES} from '../world/cityLayout.js'
+import {distance} from '../render/geometry.js'
 import {earnCash} from '../progression/careerStats.js'
 
 export const ACTIVITIES = [
@@ -24,73 +24,71 @@ const stashLocations = points([
 const terms = {race: [54, 285], delivery: [75, 235], boat: [65, 385]}
 
 export function createActivities(game) {
-	let active = null
+	let job
 	const stashes = new Set()
 	const {player, audio, police} = game
-	const speed = () => Math.abs(player.car?.speed ?? 0)
-	const arrival = () => active?.type === 'delivery' && distance(player, PLACES.market) < 6 && speed() < 3
+	const within = (point, radius) => distance(player, point) < radius
+	const stopped = speed => Math.abs(player.car?.speed ?? 0) < speed
+	const arrival = () => job?.type === 'delivery' && within(PLACES.market, 6) && stopped(3)
 	function nearby() {
-		const vehicle = player.car?.type
-		if (vehicle === 'boat' && distance(player, PLACES.marina) < 25) return ACTIVITIES[4]
+		const boat = player.car?.type === 'boat'
 		return ACTIVITIES.find(site => {
-			if (site.type === 'boat' || site.type === 'race' && (!vehicle || vehicle === 'boat')) return false
-			return distance(site, player) < 4.8
+			if (site.type === 'boat') return boat && within(site, 25)
+			if (site.type === 'race' && (!player.car || boat)) return false
+			return within(site, 4.8)
 		})
 	}
 
 	function interact() {
-		if (active) {
-			const arrived = arrival()
-			if (arrived) finish()
-			return arrived
-		}
+		if (arrival()) return finish()
+		if (job) return false
 		const site = nearby()
 		if (!site) return false
 		const {type} = site
-		const [time, reward] = terms[type] ?? []
-		if (time) {
-			active = {...site, time, reward, index: 0, route: routes[type]}
+		if (terms[type]) {
+			job = {...site, time: terms[type][0], index: 0}
 			audio.effect('radio')
-		} else if (type === 'safehouse' && !player.car) {
-			if (police.stars) game.toast('Lose dispatch first', 'SAFEHOUSE')
+		} else {
+			if (type === 'safehouse' ? player.car : !stopped(2)) return false
+			if (police.stars) game.toast('Lose dispatch first', 'SERVICE UNAVAILABLE')
+			else if (type !== 'safehouse') game.menus.show(type)
 			else {
 				player.health = player.armor = 100
 				game.atSafehouse = true
 				game.toast(game.save() ? 'Career saved' : 'Recovered', 'THE SALT FLAT')
 			}
-		} else if ((type === 'market' || type === 'garage') && speed() < 2) {
-			if (police.stars) game.toast('Lose dispatch first', 'SERVICE UNAVAILABLE')
-			else game.menus.show(type)
-		} else return false
+		}
 		return true
 	}
 
 	function finish() {
-		const {type, title, reward} = active
+		const {type, title} = job
+		const reward = terms[type][1]
 		const {events} = game.career
 		earnCash(game, reward, 18)
 		if (!events.includes(type)) events.push(type)
 		player.rep += type === 'delivery' ? 52 : 65
 		game.toast(`$${reward} · ${title}`, 'ACTIVITY COMPLETE')
-		active = null
+		job = null
 		audio.effect('success')
 		game.save()
+		return true
 	}
 
 	function update(dt) {
-		if (active) {
-			const {route, type, index} = active
-			if ((active.time -= dt) <= 0) {
+		if (job) {
+			const {type, index} = job
+			const route = routes[type]
+			if ((job.time -= dt) <= 0) {
 				game.toast('Return to restart', 'TIME EXPIRED')
-				active = null
-			} else if (route && player.car && (player.car.type === 'boat') === (type === 'boat') &&
-					distance(player, route[index]) < 9) {
+				job = null
+			} else if (route && player.car && (player.car.type === 'boat') === (type === 'boat') && within(route[index], 9)) {
 				audio.effect('coin')
-				if (++active.index === route.length) finish()
+				if (++job.index === route.length) finish()
 			}
 		}
-		for (let i = 0; i < stashLocations.length; i++) {
-			if (stashes.has(i) || distance(stashLocations[i], player) > 1.7) continue
+		for (const [i, point] of stashLocations.entries()) {
+			if (stashes.has(i) || !within(point, 1.7)) continue
 			stashes.add(i)
 			earnCash(game, 65, 9)
 			player.rep += 15
@@ -102,8 +100,9 @@ export function createActivities(game) {
 	}
 
 	function objective() {
-		if (!active) return null
-		const {title, route, index, time} = active
+		if (!job) return null
+		const {title, type, index, time} = job
+		const route = routes[type]
 		return {
 			title, task: route ? 'Reach the next checkpoint' : 'Deliver the parcel',
 			stage: index + 1, stages: route?.length ?? 1, remaining: time,
@@ -115,15 +114,14 @@ export function createActivities(game) {
 
 	function prompt() {
 		if (arrival()) return 'Hand over parcel'
-		if (active) return ''
-		const location = nearby()
-		if (!location) return ''
-		if (location.type === 'safehouse') return player.car ? '' : 'Use safehouse'
-		return (terms[location.type] ? 'Start ' : 'Browse ') + location.title
+		const site = !job && nearby()
+		if (!site) return ''
+		if (site.type === 'safehouse') return player.car ? '' : 'Use safehouse'
+		return (terms[site.type] ? 'Start ' : 'Browse ') + site.title
 	}
 
 	function reset(saved = []) {
-		active = null
+		job = null
 		stashes.clear()
 		for (const index of saved) stashes.add(index)
 	}

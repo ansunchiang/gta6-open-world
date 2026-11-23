@@ -1,4 +1,4 @@
-import {WEAPONS, weaponById} from 'weapons'
+import {WEAPONS, weaponById} from '../combat/weapons.js'
 
 const silhouettes = [
 	'M5 10l4-4 2 2 3-4 3 1 1-3 4 1 1 3 4-1 2 4-2 9-5 4H12L7 17Z',

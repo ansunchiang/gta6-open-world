@@ -1,7 +1,8 @@
 import {spawnPerson} from './pedestrianAI.js'
 import {lineClear} from './policeAI.js'
 import {animateCharacter} from '../player/characterModel.js'
-import {bearing, distance, offset, turn} from 'geometry'
+import {bearing, distance, offset, turn} from '../render/geometry.js'
+import {openHeading} from './crowdReaction.js'
 
 export function deployGuards(game, site, count) {
 	for (const {model} of game.guards) model.node.removeFromParent()
@@ -32,12 +33,9 @@ export function updateGuards(game, dt) {
 			const range = distance(guard, player)
 			const aim = visible[index] && range < (index % 2 ? 13 : 24)
 			const goal = aim ? player : sighting ?? guard.home
-			const heading = bearing(guard, goal)
-			const direct = [0, .75, -.75, 1.45, -1.45].find(turn => {
-				const {x, z} = offset(guard, 1.4, 0, heading + turn)
-				return !city.obstacle(x, z, .45)
-			})
-			guard.heading += turn(guard.heading, heading + (aim ? 0 : direct ?? 0)) * Math.min(1, dt * 8)
+			const direct = bearing(guard, goal)
+			const heading = aim ? direct : openHeading(city, guard, direct, .45)
+			guard.heading += turn(guard.heading, heading ?? direct) * Math.min(1, dt * 8)
 			if (aim) {
 				guard.aim = true
 				if ((guard.fire -= dt) < 0) {
@@ -46,9 +44,9 @@ export function updateGuards(game, dt) {
 					audio.effect('shot')
 					game.damage(range < 9 ? 8 : 5)
 				}
-			} else if (direct !== undefined && distance(guard, goal) > 1.1) {
+			} else if (heading != null && distance(guard, goal) > 1.1) {
 				pace = sighting ? 3.45 : 2.1
-				const {x, z} = offset(guard, dt * pace, 0, heading + direct)
+				const {x, z} = offset(guard, dt * pace, 0, heading)
 				city.move(guard, x, z, .32)
 			}
 		}

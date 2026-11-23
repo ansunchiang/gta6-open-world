@@ -1,5 +1,5 @@
-import {STORY} from 'story-jobs'
-import {DISTRICTS} from 'city-layout'
+import {STORY} from '../missions/storyJobs.js'
+import {DISTRICTS} from '../world/cityLayout.js'
 
 export function completion(chapter, career, packages) {
 	const rows = [
