@@ -1,29 +1,32 @@
-export const WEAPONS = [
-  { id: 'fists', label: 'FISTS', name: 'Fists', capacity: 0, damage: 42, reach: 2.4, pace: .4 },
-  { id: 'bat', label: 'BAT', name: 'Breakwater Bat', capacity: 0, damage: 66, reach: 3.1, pace: .58 },
-  { id: 'pistol', label: 'PISTOL', name: 'Tideline .38', capacity: 8, damage: 44, reach: 47, pace: .24, stock: 32 },
-  { id: 'smg', label: 'SMG', name: 'Midge SMG', capacity: 24, damage: 24, reach: 38, pace: .10, stock: 72 },
-  { id: 'shotgun', label: 'SHOTGUN', name: 'Sounder 12', capacity: 5, damage: 82, reach: 24, pace: .72, stock: 20 },
-  { id: 'carbine', label: 'CARBINE', name: 'Meridian Carbine', capacity: 18, damage: 49, reach: 62, pace: .18, stock: 54, price: 720, rank: 3 },
-  { id: 'heavy', label: 'HEAVY', name: 'Maelstrom Heavy', capacity: 32, damage: 58, reach: 54, pace: .12, stock: 64, price: 1450, rank: 5 },
-];
+import {count} from '../save/saveSystem.js'
 
-export const weaponById = Object.fromEntries(WEAPONS.map(weapon => [weapon.id, weapon]));
+export const WEAPONS = [
+	// Magazine, damage, range, cadence, reserve, price, rank
+	['fists', 'Fists', 0, 42, 2.4, .4],
+	['bat', 'Breakwater Bat', 0, 66, 3.1, .58],
+	['pistol', 'Tideline .38', 8, 44, 47, .24, 32],
+	['smg', 'Midge SMG', 24, 24, 38, .10, 72],
+	['shotgun', 'Sounder 12', 5, 82, 24, .72, 20],
+	['carbine', 'Meridian Carbine', 18, 49, 62, .18, 54, 720, 3],
+	['heavy', 'Maelstrom Heavy', 32, 58, 54, .12, 64, 1450, 5],
+].map(([id, name, capacity, damage, reach, pace, stock = 0, price, rank]) =>
+	({id, name, capacity, damage, reach, pace, stock, price, rank}))
+
+export const weaponById = Object.fromEntries(WEAPONS.map(weapon => [weapon.id, weapon]))
 
 export function createLoadout(saved = {}, legacyReserve = 32) {
-  return Object.fromEntries(WEAPONS.map(weapon => {
-    const previous = saved[weapon.id];
-    const owned = !weapon.price || previous?.owned === true;
-    const load = Number.isFinite(previous?.rounds) ? previous.rounds : weapon.capacity;
-    const stock = Number.isFinite(previous?.stock) ? previous.stock : weapon.id === 'pistol' ? legacyReserve : weapon.stock ?? 0;
-    return [weapon.id, {
-      owned,
-      rounds: owned ? Math.max(0, Math.min(weapon.capacity, Math.floor(load))) : 0,
-      stock: owned ? Math.max(0, Math.min(200, Math.floor(stock))) : 0,
-    }];
-  }));
+	return Object.fromEntries(WEAPONS.map(({id, price, capacity, stock}) => {
+		const previous = saved[id]
+		const owned = !price || previous?.owned === true
+		return [id, {
+			owned,
+			rounds: owned ? count(previous?.rounds, capacity, capacity) : 0,
+			stock: owned ? count(previous?.stock, 200, id === 'pistol' ? legacyReserve : stock) : 0,
+		}]
+	}))
 }
 
 export function buyWeapon(player, weapon) {
-  Object.assign(player.loadout[weapon.id], { owned: true, rounds: weapon.capacity, stock: weapon.stock });
+	const {id, capacity: rounds, stock} = weapon
+	player.loadout[id] = {owned: true, rounds, stock}
 }

@@ -1,6 +1,6 @@
 [
   { "name": "1-cover-chase.jpg", "query": "?shot=chase&seed=2601" },
   { "name": "2-on-foot.jpg", "query": "?shot=street&seed=2601" },
-  { "name": "3-mission.jpg", "query": "?shot=mission&seed=2601" },
-  { "name": "4-city-map.jpg", "query": "?shot=map&seed=2601" }
+  { "name": "3-atlas.jpg", "query": "?shot=atlas&seed=2601" },
+  { "name": "4-title.jpg", "query": "?shot=title&seed=2601" }
 ]

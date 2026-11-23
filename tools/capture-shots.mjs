@@ -44,7 +44,7 @@ try {
       await page.goto(origin + '/' + shot.query, { waitUntil: 'load' });
       await page.waitForFunction(() => window.__shotReady || !document.querySelector('#error-panel').hidden);
       assert.equal(await page.evaluate(() => window.__shotReady), true, 'WebGL scene did not render');
-      assert.deepEqual(errors, []);
+      assert.deepEqual(errors, [], 'Browser errors or unexpected requests in ' + shot.name);
       let saved = false;
       for (const quality of [89, 84, 78, 70, 61, 50, 40]) {
         const bytes = await page.screenshot({ type: 'jpeg', quality });
@@ -56,9 +56,11 @@ try {
       }
       assert(saved, shot.name + ' exceeds 256 KiB');
     }
-    if (!process.argv[2]) await unlink(new URL('../screenshots/4-start-menu.jpg', import.meta.url)).catch(error => {
-      if (error.code !== 'ENOENT') throw error;
-    });
+    if (!process.argv[2]) for (const name of ['3-mission.jpg', '4-city-map.jpg']) {
+      await unlink(new URL('../screenshots/' + name, import.meta.url)).catch(error => {
+        if (error.code !== 'ENOENT') throw error;
+      });
+    }
   }
   assert.deepEqual(errors, []);
 } catch (error) {

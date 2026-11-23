@@ -1,107 +1,112 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#192127">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; style-src 'self' 'unsafe-inline'">
-  <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./style.css">
-  <title>Salt Relay</title>
+	<meta charset=utf-8>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-9gWx/Xv8BRWXgEnYF/y/n6ADyMLxlsoB47ODKiPSE1Q='; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; style-src 'self' 'unsafe-inline'">
+	<link rel=icon href="data:,">
+	<link rel=stylesheet href=./style.css>
+	<title>Salt Relay</title>
+	<script type=importmap>
+		{"imports":{
+			"geometry":"./src/render/geometry.js",
+			"city-layout":"./src/world/cityLayout.js",
+			"weapons":"./src/combat/weapons.js",
+			"story-jobs":"./src/missions/storyJobs.js",
+			"radio-stations":"./src/audio/radioStations.js"
+		}}
+	</script>
 </head>
 <body>
-  <canvas id="view" aria-label="Vesper Bay"></canvas>
-  <p id="error-panel" class="hud-panel" hidden>Salt Relay needs WebGL 2. Enable graphics acceleration in Chrome and reload.</p>
-  <div id="hud" hidden>
-    <header class="job hud-panel">
-      <div class="eyebrow" id="job-kind">STORY JOB 01</div>
-      <h2 id="job-title">Borrowed Tide</h2>
-      <p id="job-task">Meet Rook</p>
-      <div class="stage-line"><b id="stage-label"></b><time id="stage-time"></time></div>
-      <progress id="stage-progress" value="0" max="1"></progress>
-      <div id="job-next"></div>
-    </header>
-    <aside class="vitals hud-panel">
-      <div class="pursuit"><span id="stars"><b id="lit-stars"></b><span id="dim-stars">☆☆☆☆☆</span></span><b id="pursuit-label">HARBOR PATROL</b></div>
-      <div class="cash"><span class="eyebrow">CASH</span><strong id="money">$140</strong></div>
-      <section id="dispatch-panel" hidden><h3>POLICE DISPATCH</h3><div id="dispatch-roster"></div></section>
-    </aside>
-    <aside class="radar hud-panel">
-      <div class="radar-line"><strong id="district">Mirage Row</strong><time id="clock">18:00</time></div>
-      <canvas width="164" height="164" id="minimap" aria-label="Radar"></canvas>
-      <div class="meter"><b>HP</b><progress id="health" max="100"></progress><span id="health-value"></span></div>
-      <div class="meter armor"><b>ARM</b><progress id="armor" max="100"></progress><span id="armor-value"></span></div>
-      <section class="respect"><b id="rank"></b><progress id="respect" max="1"></progress><span id="respect-value"></span></section>
-    </aside>
-    <div id="equipment" class="equipment hud-panel">
-      <div class="eyebrow" id="equip-name"></div>
-      <div class="car-telemetry"><strong id="equip-value"></strong><b id="equip-label"></b></div>
-      <div id="radio"></div>
-      <div id="crew"></div>
-    </div>
-    <div id="interaction" hidden><kbd>E</kbd><span id="interaction-text"></span></div>
-    <div id="waypoint" hidden><i></i><span></span></div>
-    <div id="reticle" hidden></div>
-    <div class="bottom-band">
-      <aside id="dialogue" class="dialogue hud-panel" hidden>
-        <canvas id="portrait" width="64" height="64" aria-hidden="true"></canvas>
-        <div><b id="speaker"></b><p id="dialogue-text"></p></div>
-      </aside>
-      <section id="weapon-bar" class="hud-panel" aria-label="Weapon slots"><header><b></b><span></span></header><div class="weapon-strip"></div></section>
-    </div>
-    <aside id="toast" class="toast hud-panel" hidden><div id="toast-type" class="eyebrow"></div><strong id="toast-text"></strong></aside>
-    <div id="damage" aria-hidden="true"></div>
-  </div>
+	<canvas id=view aria-label="Vesper Bay"></canvas>
+	<p id=error-panel class=hud-panel hidden>Enable WebGL 2 to play Salt Relay.</p>
+	<div id=hud hidden>
+		<header class="job hud-panel">
+			<div class=eyebrow id=job-kind></div>
+			<h2 id=job-title></h2><p id=job-task></p>
+			<div class="split stage-line"><b id=stage-label></b><time id=stage-time></time></div>
+			<progress id=stage-progress value=0 max=1></progress>
+			<div id=job-next></div>
+		</header>
+		<aside class="vitals hud-panel">
+			<div class="split pursuit"><strong id=wanted></strong><span id=stars><b></b><span></span></span></div>
+			<b id=pursuit-label></b>
+			<div class="split cash"><span class=eyebrow>CASH</span><strong id=money></strong></div>
+			<section id=dispatch-panel hidden><h3>POLICE DISPATCH</h3><div id=dispatch-roster></div></section>
+		</aside>
+		<aside class="radar hud-panel">
+			<div class=split><strong id=district></strong><time id=clock></time></div>
+			<b id=standing></b>
+			<canvas width=164 height=164 id=minimap aria-label=Radar></canvas>
+			<div class=meter><b>HP</b><progress id=health max=100></progress><span id=health-value></span></div>
+			<div class="meter armor"><b>ARM</b><progress id=armor max=100></progress><span id=armor-value></span></div>
+			<section class=respect><b id=rank></b><progress id=respect max=1></progress><span id=respect-value></span></section>
+		</aside>
+		<div class="equipment hud-panel">
+			<div class=eyebrow id=equip-name></div>
+			<div class="split car-telemetry"><strong id=equip-value></strong><b id=equip-label></b></div>
+			<div id=radio></div>
+			<div id=crew></div>
+		</div>
+		<div id=interaction hidden><kbd>E</kbd><span id=interaction-text></span></div>
+		<div id=waypoint hidden></div>
+		<div id=reticle hidden></div>
+		<div class=bottom-band>
+			<aside id=dialogue class="dialogue hud-panel" hidden>
+				<canvas id=portrait width=64 height=64 aria-hidden=true></canvas>
+				<div><b id=speaker></b><p id=dialogue-text></p></div>
+			</aside>
+			<section id=weapon-bar class=hud-panel aria-label="Weapon slots"><header class=split><b></b><span></span></header><div class=weapon-strip></div></section>
+		</div>
+		<aside id=toast class="toast hud-panel" hidden><div id=toast-type class=eyebrow></div><strong id=toast-text></strong></aside>
+		<div id=damage></div>
+	</div>
 
-  <main id="title" class="menu">
-    <div class="menu-main">
-      <div class="eyebrow">VESPER BAY</div>
-      <h1>SALT<em>RELAY</em></h1>
-      <div class="menu-actions">
-        <button id="continue" hidden>Continue story</button>
-        <button id="start">Start story</button>
-        <button id="title-help" class="quiet">Controls</button>
-      </div>
-    </div>
-    <aside class="chart">
-      <canvas id="title-map" width="435" height="335" aria-label="District map"></canvas>
-    </aside>
-  </main>
+	<main id=title class=menu>
+		<div>
+			<h1>SALT<em>RELAY</em></h1>
+			<p class=subtitle>Vesper Bay</p>
+			<div class=menu-actions>
+				<button id=continue>Continue</button>
+				<button id=start class=quiet>New Story</button>
+				<button id=title-load class=quiet>Load</button>
+				<button id=title-help class=quiet>Controls</button>
+				<button id=settings class=quiet>Settings</button>
+			</div>
+		</div>
+		<aside class=title-saves><h2>Save slots</h2><div id=title-slots class=slots></div></aside>
+	</main>
 
-  <section id="overlay" class="overlay" hidden aria-labelledby="overlay-title">
-    <div class="sheet">
-      <p class="eyebrow" id="overlay-tag">SALT RELAY</p>
-      <h2 id="overlay-title">Paused</h2>
-      <div id="pause-actions">
-        <button id="resume">Resume</button>
-        <button id="map-button" class="quiet">City map</button>
-        <button id="save-button" class="quiet">Save checkpoint</button>
-        <button id="audio-button" class="quiet">Sound on</button>
-        <button id="pause-help" class="quiet">Controls</button>
-        <button id="menu-button" class="quiet">Title screen</button>
-        <p id="save-feedback" role="status"></p>
-      </div>
-      <div id="help-panel" hidden>
-        <dl>
-          <div><dt>Walk / steer / throttle</dt><dd>WASD or arrows</dd></div>
-          <div><dt>Sprint / handbrake</dt><dd>Shift / Space</dd></div>
-          <div><dt>Talk / take vehicle / exit</dt><dd>E</dd></div>
-          <div><dt>Look / aim / recenter view</dt><dd>Hold right mouse / C</dd></div>
-          <div><dt>Attack / equip / reload</dt><dd>Left mouse or F / 1–7 or Q / R</dd></div>
-          <div><dt>Radio / call crew</dt><dd>V / X</dd></div>
-          <div><dt>Map / pause</dt><dd>M / Esc</dd></div>
-        </dl>
-        <button id="help-back">Back</button>
-      </div>
-      <div id="map-panel" hidden>
-        <canvas id="full-map" width="640" height="465" aria-label="Full city map"></canvas>
-        <p id="map-stats"></p>
-        <button id="map-back">Back to game</button>
-      </div>
-      <div id="shop-panel" hidden><p id="shop-cash"></p><div id="shop-items"></div><button id="shop-back">Back to game</button></div>
-      <div id="busted-panel" hidden><p>Restart this job. Keep your career and upgrades.</p><button id="retry">Retry checkpoint</button></div>
-    </div>
-  </section>
-  <script type="module" src="./src/main.js"></script>
+	<section id=atlas hidden aria-labelledby=atlas-title>
+		<header class="split atlas-header">
+			<h2 id=atlas-title>Vesper Bay</h2>
+			<nav id=atlas-tabs aria-label="Pause atlas"></nav>
+			<button id=resume><kbd>Esc</kbd> Resume</button>
+		</header>
+		<div class=atlas-layout>
+			<div id=atlas-page></div>
+			<aside class=atlas-career>
+				<div class=completion><div id=completion-ring><b></b></div><h3>Career<br>completion</h3></div>
+				<div id=checklist></div>
+				<h3>District standing</h3><div id=district-bars></div>
+			</aside>
+			<div id=career-stats class=stat-grid></div>
+		</div>
+	</section>
+
+	<section id=overlay hidden aria-labelledby=overlay-title>
+		<div class=sheet>
+			<h2 id=overlay-title></h2>
+			<div id=help-panel hidden>
+				<dl id=bindings></dl>
+				<button id=help-back>Back</button>
+			</div>
+			<div id=settings-panel hidden><button id=audio-button class=quiet>Sound on</button>
+				<button id=orbit-button class=quiet>City camera on</button><button id=settings-back>Back</button></div>
+			<div id=shop-panel hidden><p id=shop-cash></p><div id=shop-items></div><button id=shop-back>Back to game</button></div>
+			<div id=busted-panel hidden><p>Retry with your upgrades intact.</p><button id=retry>Retry checkpoint</button></div>
+		</div>
+	</section>
+	<script type=module src=./src/main.js></script>
 </body>
 </html>
