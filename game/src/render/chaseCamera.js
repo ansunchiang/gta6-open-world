@@ -39,7 +39,7 @@ export function createChaseCamera(camera, city) {
 		next.set(target.x, 1.67 - rig.pitch * 3.2, target.z)
 		look.lerp(next, damping)
 		camera.lookAt(look)
-		const fov = car ? 65 + Math.min(6, speed * .19) : aim ? 57 : 64
+		const fov = car ? 65 + Math.min(6, speed * .19) + car.impact * 3 : aim ? 57 : 64
 		if (Math.abs(camera.fov - fov) > .05) {
 			camera.fov += (fov - camera.fov) * damping
 			camera.updateProjectionMatrix()

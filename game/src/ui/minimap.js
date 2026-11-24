@@ -1,6 +1,6 @@
-import {DISTRICTS, GRID, LAND, PLACES, mapRoute} from '../world/cityLayout.js'
+import {BEACH, DISTRICTS, GRID, LAND, PLACES, PROMENADE, mapRoute} from '../world/cityLayout.js'
 import {ACTIVITIES} from '../missions/activities.js'
-import {slips} from '../world/marina.js'
+import {slips} from '../world/waterfront.js'
 import {CAUSEWAY} from '../world/districtStyles.js'
 import {STORY} from '../missions/storyJobs.js'
 
@@ -56,17 +56,24 @@ export function drawMap(canvas, {city, player, police}, job, full = false) {
 	const facade = full ? '#fff1db60' : '#7d9394'
 	for (const {x, z, w, d, h} of city.footprints) rect(x - w / 2, z - d / 2, w, d, h ? facade : '#237b64')
 	ctx.restore()
-	rect(190, -205, 32, 409, '#f1ca85')
-	rect(222, -205, 2.5, 409, '#7bd7c2')
+	if (full) for (const depth of [9, 18, 32]) {
+		path(BEACH.map(([x, z]) => [x + depth, z]), '#58becc60', 1.4)
+	}
+	path([[190, -205], ...BEACH, [190, 204]], '#84d9be', 2.5, true)
+	ctx.fillStyle = '#f1ca85'
+	ctx.fill()
+	path(PROMENADE, '#9a815b', full ? 3 : 2)
 	for (const pier of slips) rect(211, pier - 2.8, 40, 5.6, '#fae5b2')
-	rect(CAUSEWAY.x, CAUSEWAY.z - 7, CAUSEWAY.end - CAUSEWAY.x, 14, '#ffe1a1')
+	const {x, z, end} = CAUSEWAY
+	path([[x, z], [end, z]], '#ffe1a1', 16)
+	path([[x, z], [end, z]], road, 9)
+	rect(end - 3, z - 8, 6, 16, '#ffe1a1')
 
 	const {radius, sweeping, posts} = police.search
 	ctx.setLineDash([3, 3])
 	if (police.stars && police.lastKnown && (!full || sweeping)) {
-		const {x, z} = police.lastKnown
 		ctx.beginPath()
-		ctx.arc(x, z, radius, 0, Math.PI * 2)
+		ctx.arc(police.lastKnown.x, police.lastKnown.z, radius, 0, Math.PI * 2)
 		ctx.fillStyle = sweeping ? '#84e9d045' : '#eb9b9125'
 		ctx.fill()
 		ctx.lineWidth = 1.5

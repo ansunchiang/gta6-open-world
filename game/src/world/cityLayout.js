@@ -1,6 +1,8 @@
 export const GRID = [-180, -120, -60, 0, 60, 120, 180]
 export const EDGE = 202
 export const SHORE = 222
+export const BEACH = [[218,-205], [221,-143], [224,-85], [220,-28], [223,25], [224,92], [221,151], [218,204]]
+export const PROMENADE = [[197,-185], [197,-65], [210,11], [210,83], [197,145], [197,197]]
 export const LAND = [
 	[-207,-205], [190,-205], [190,204], [-62,204], [-73,168], [-122,137],
 	[-184,132], [-206,108],
@@ -52,6 +54,6 @@ export function mapRoute({x, z}, goal) {
 	const sx = closestStreet(x), sz = closestStreet(z)
 	const ex = closestStreet(goal.x), ez = closestStreet(goal.z)
 	const end = [goal.x, goal.z]
-	if (x > 194 && goal.x > 194) return [[x, z], end]
-	return [[x, z], [sx, z], [sx, sz], [ex, sz], [ex, ez], [ex, goal.z], end]
+	return x > 194 && goal.x > 194 ? [[x, z], end] :
+		[[x, z], [sx, z], [sx, sz], [ex, sz], [ex, ez], [ex, goal.z], end]
 }

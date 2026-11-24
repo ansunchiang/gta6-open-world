@@ -1,7 +1,7 @@
 import {GRID} from '../world/cityLayout.js'
 import {angle, blend, distance} from '../render/geometry.js'
 import {guideVehicle, spawnVehicle, syncVehicle} from '../vehicles/vehiclePhysics.js'
-import {boats} from '../world/marina.js'
+import {boats} from '../world/waterfront.js'
 
 const colors = ['#a25452', '#d7b573', '#76a79b', '#b7cbd0', '#535b72', '#b7aba0', '#d58472', '#439dab']
 const types = ['reed', 'volta', 'scooter', 'taxi', 'van']
@@ -54,9 +54,8 @@ export function updateTraffic(cars, player, city, dt, clock) {
 				return ahead > 0 && ahead < 4.5 + speed * .44 && Math.abs(x * dz - z * dx) < 1.72
 			})
 			car.wait = Math.max(0, (car.wait ?? 0) - dt)
-			const cautious = distance(player, car) < 3.6 && !player.car
-			const crash = guideVehicle(car, route[car.routeIndex], blocking || cautious || car.wait ? 0 : car.pace, dt, city)
-			if (crash) {
+			const stop = blocking || car.wait || !player.car && distance(player, car) < 3.6
+			if (guideVehicle(car, route[car.routeIndex], stop ? 0 : car.pace, dt, city)) {
 				car.speed = 0
 				car.routeIndex = (car.routeIndex + 1) % route.length
 			}

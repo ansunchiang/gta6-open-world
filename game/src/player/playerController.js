@@ -3,9 +3,8 @@ import {driveVehicle} from '../vehicles/vehiclePhysics.js'
 import {VEHICLE_TYPES} from '../vehicles/vehicleModel.js'
 import {spawnPerson} from '../ai/pedestrianAI.js'
 import {angle, bearing, blend, distance, offset, turn} from '../render/geometry.js'
-import {slips} from '../world/marina.js'
-import {vehicleRank} from '../progression/garageUpgrades.js'
-import {respectRank} from '../progression/respect.js'
+import {slips} from '../world/waterfront.js'
+import {respectRank, vehicleRank} from '../progression/careerStats.js'
 import {updateJump} from '../progression/stuntJumps.js'
 
 export function createPlayer(scene) {
@@ -15,8 +14,7 @@ export function createPlayer(scene) {
 export function nearestVehicle(player, vehicles) {
 	let candidate = null, reach = 4.25
 	for (const car of vehicles) {
-		const unavailable = car === player.car || car.mode === 'held' || car.health <= 0
-		if (unavailable || Math.abs(car.speed) > 9.7) continue
+		if (car === player.car || car.mode === 'held' || car.health <= 0 || Math.abs(car.speed) > 9.7) continue
 		const range = distance(player, car)
 		if (range >= reach) continue
 		candidate = car
@@ -33,19 +31,16 @@ export function enterVehicle(game, car, animate = true) {
 	const rank = vehicleRank[type]
 	if (rank > respectRank(player.rep).level) return game.toast('Unlock at rank ' + rank, 'VEHICLE LOCKED')
 	if (car.driver) {
-		const {x, z} = offset(car, 0, -1.48)
-		const facing = heading - Math.PI / 2
-		const driver = spawnPerson(scene, x, z, '#d9966e', 1, 'civilian', facing)
-		Object.assign(driver, {panic: 4.6, flee: facing, expires: clock + 26})
-		people.push(driver)
+		const {x, z} = offset(car, 0, -1.48), flee = heading - Math.PI / 2
+		const driver = spawnPerson(scene, x, z, '#d9966e', 1, 'civilian', flee)
+		people.push(Object.assign(driver, {panic: 4.6, flee, expires: clock + 26}))
 	}
 	const stolen = !car.claimed
-	car.driver = false
-	car.claimed = true
-	car.mode = animate ? 'held' : 'player'
-	car.speed = 0
-	if (animate) player.theft = {car, time: ENTRY_SECONDS}
-	else seatPlayer(player, car)
+	Object.assign(car, {driver: false, claimed: true, speed: 0})
+	if (animate) {
+		car.mode = 'held'
+		player.theft = {car, time: ENTRY_SECONDS}
+	} else seatPlayer(player, car)
 	game.audio.effect('door')
 	if (!stolen) return
 	if (type !== 'tide' && type !== 'boat') {
@@ -81,9 +76,8 @@ export function exitVehicle(game, force = false) {
 			boat ? 'Moor at the pier to exit' : 'Leave room beside the car', boat ? 'MARINA' : 'VEHICLE')
 		return false
 	}
-	player.x = point.x
-	player.z = point.z
-	Object.assign(player, {heading: car.heading, car: null, speed: 0})
+	const {x, z} = point
+	Object.assign(player, {x, z, heading: car.heading, car: null, speed: 0})
 	Object.assign(car, {mode: 'parked', speed: 0, jump: null, lift: 0})
 	player.model.node.visible = true
 	game.audio.effect('door')
@@ -93,10 +87,8 @@ export function exitVehicle(game, force = false) {
 const followVehicle = (player, {x, z, heading}) => Object.assign(player, {x, z, heading})
 
 function seatPlayer(player, car) {
-	player.car = car
-	player.theft = null
-	car.mode = 'player'
-	car.doorSwing = 0
+	Object.assign(player, {car, theft: null})
+	Object.assign(car, {mode: 'player', doorSwing: 0})
 	followVehicle(player, car)
 }
 

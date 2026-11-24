@@ -20,8 +20,7 @@ export function spawnHelicopter(scene, x, z, y = 14) {
 	blades.box('#1e2537', 0, 0, 0, 11.8, .05, .27)
 	blades.make(rotor, {}, false)
 	node.add(rotor)
-	const cone = new T.CylinderGeometry(.23, 4.9, 1, 32, 1, true)
-	const beam = new T.Mesh(cone, new T.MeshBasicMaterial({
+	const beam = new T.Mesh(new T.CylinderGeometry(.23, 4.9, 1, 32, 1, true), new T.MeshBasicMaterial({
 		color: '#77baff', opacity: .075, transparent: true,
 		depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide,
 	}))
@@ -48,14 +47,11 @@ export function removeHelicopter(police) {
 	if (!police.air) return
 	const {node, beam, lamp} = police.air
 	for (const item of [node, beam, lamp]) item.removeFromParent()
-	node.traverse(dispose)
-	dispose(beam)
+	for (const item of [node, beam]) item.traverse(({geometry, material}) => {
+		geometry?.dispose()
+		material?.dispose()
+	})
 	police.air = null
-}
-
-function dispose({geometry, material}) {
-	geometry?.dispose()
-	material?.dispose()
 }
 
 export function updateHelicopter(game, dt) {

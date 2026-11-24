@@ -55,6 +55,13 @@ export function box(parent, material, x, y, z, width, height, depth) {
 	return node
 }
 
+export function groundShape(scene, points, material, y) {
+	const shape = new T.Shape(points.map(([x, z]) => new T.Vector2(x, -z)))
+	const mesh = addMesh(scene, new T.ShapeGeometry(shape), material, 0, y, 0, false)
+	mesh.rotation.x = -Math.PI / 2
+	mesh.receiveShadow = true
+}
+
 export function cylinder(top, bottom, sides = 8) {
 	const key = [top, bottom, sides].join('/')
 	if (!tubes.has(key)) tubes.set(key, new T.CylinderGeometry(top, bottom, 1, sides))
@@ -69,7 +76,7 @@ export class GeometryBatch {
 
 	add(geometry, color, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) {
 		const {positions, normals, colors, indices} = this
-		const offset = positions.length / 3
+		const start = positions.length / 3
 		matrix.makeRotationFromEuler(new T.Euler(rx, ry, rz)).scale(new T.Vector3(sx, sy, sz)).setPosition(x, y, z)
 		normalMatrix.getNormalMatrix(matrix)
 		tint.set(color)
@@ -78,9 +85,9 @@ export class GeometryBatch {
 			point.fromBufferAttribute(position, i).applyMatrix4(matrix).toArray(positions, positions.length)
 			point.fromBufferAttribute(normal, i).applyNormalMatrix(normalMatrix).toArray(normals, normals.length)
 			colors.push(tint.r, tint.g, tint.b)
-			if (!geometry.index) indices.push(offset + i)
+			if (!geometry.index) indices.push(start + i)
 		}
-		if (geometry.index) for (const i of geometry.index.array) indices.push(offset + i)
+		if (geometry.index) for (const i of geometry.index.array) indices.push(start + i)
 	}
 
 	box(color, x, y, z, sx, sy, sz, ry = 0) {
@@ -107,7 +114,8 @@ export class GeometryBatch {
 			geo.setAttribute(name, new T.Float32BufferAttribute(data, 3))
 		}
 		geo.setIndex(indices)
-		return addMesh(parent, geo, paint(0xffffff, {vertexColors: true, ...settings}), 0, 0, 0, shadow)
+		const material = settings.isMaterial ? settings : paint(0xffffff, {vertexColors: true, ...settings})
+		return addMesh(parent, geo, material, 0, 0, 0, shadow)
 	}
 }
 

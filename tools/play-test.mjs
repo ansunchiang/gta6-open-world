@@ -1,8 +1,17 @@
 import assert from 'node:assert/strict';
 
-export async function playTest(page, origin) {
+export async function playTest(page, origin, minute) {
+  await page.route(url => url.pathname === '/src/world/simulation.js' && !url.search, route => route.fulfill({
+    contentType: 'text/javascript',
+    body: `export * from './simulation.js?original';
+      import { createSimulation as original } from './simulation.js?original';
+      export function createSimulation(...args) {
+        return window.testGame = original(...args);
+      }`,
+  }));
   await page.goto(origin);
   await page.getByRole('button', { name: 'New Story' }).click();
+  await page.evaluate(minute => { window.testGame.timeOfDay = minute; }, minute);
   await page.keyboard.down('w');
   await page.getByText('Talk to ROOK', { exact: true }).waitFor();
   await page.keyboard.up('w');
@@ -15,16 +24,14 @@ export async function playTest(page, origin) {
   await page.keyboard.press('v');
   await page.getByText(/MARROW FM/).waitFor();
 
-  const result = await page.evaluate(async () => {
-    const T = await import('/vendor/three.module.min.js');
-    const { createSimulation, NEUTRAL } = await import('/src/world/simulation.js');
+  const result = await page.evaluate(async minute => {
+    const { NEUTRAL } = await import('/src/world/simulation.js');
     const { PLACES } = await import('/src/world/cityLayout.js');
     const { WEAPONS, buyWeapon } = await import('/src/combat/weapons.js');
     const { createSearch, stepSearch } = await import('/src/ai/pursuitSearch.js');
     const { reactToAlarm, warnCrowd } = await import('/src/ai/crowdReaction.js');
     const { driveVehicle } = await import('/src/vehicles/vehiclePhysics.js');
-    const game = createSimulation(new T.Scene(), new T.PerspectiveCamera(), 2601, { reset() {} }, false);
-    game.menus = { mode: 'play', show(mode) { this.mode = mode; } };
+    const game = window.testGame;
     const { player } = game;
     const check = (condition, label) => { if (!condition) throw new Error(label); };
     const at = (point, heading = 0) => {
@@ -69,6 +76,7 @@ export async function playTest(page, origin) {
     check(drive('scooter') > drive('volta') && drive('volta') > drive('van'),
       'Steering response varies across vehicle classes');
     game.reset(null);
+    game.timeOfDay = minute;
     at({ x: PLACES.garage.x, z: PLACES.garage.z + 1.8 });
     press('KeyE');
     check(game.missions.stage === 1, 'Garage contact');
@@ -155,7 +163,7 @@ export async function playTest(page, origin) {
     tick(65, { throttle: 1 });
     check(boat.x > boatX + 3, 'Drive out from the marina');
     return { health: player.health, cash: career.money, chapter: career.chapter, weapons: WEAPONS.length };
-  });
+  }, minute);
   assert.equal(result.weapons, 7);
   await page.goto(origin + '/?shot=street');
   await page.waitForFunction(() => window.__shotReady);
@@ -164,6 +172,7 @@ export async function playTest(page, origin) {
   await page.getByRole('heading', { name: 'Vesper Bay', exact: true }).waitFor();
   await page.goto(origin);
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.evaluate(minute => { window.testGame.timeOfDay = minute; }, minute);
   await page.getByRole('heading', { name: 'Blind Water', exact: true }).waitFor();
   await page.getByText('Use safehouse', { exact: true }).waitFor();
   await page.keyboard.down('w');
@@ -204,5 +213,16 @@ export async function playTest(page, origin) {
   await page.getByRole('button', { name: 'Load slot 2' }).click();
   await page.getByRole('heading', { name: 'Blind Water', exact: true }).waitFor();
   await page.getByText('$695', { exact: true }).waitFor();
-  console.log('Chrome play test passed', result);
+  const fps = await page.evaluate(minute => new Promise(resolve => {
+    const game = window.testGame;
+    game.timeOfDay = minute;
+    let start, frames = 0;
+    function sample(now) {
+      start ??= now;
+      if (now - start >= 1100) resolve(Math.round(frames * 1000 / (now - start)));
+      else { frames++; requestAnimationFrame(sample); }
+    }
+    requestAnimationFrame(sample);
+  }), minute);
+  console.log('Chrome play test passed', { minute, fps, ...result });
 }

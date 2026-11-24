@@ -9,7 +9,8 @@ export const CREW = [
 export function callCrew(game, presses) {
 	const {player, police, crewReady, clock} = game
 	const i = CREW.findIndex(crew => presses.has('Key' + crew.key))
-	if (i < 0 || crewReady[i] > clock) return
+	const crew = CREW[i]
+	if (!crew || crewReady[i] > clock) return
 	if (i === 0) player.armor = Math.min(100, player.armor + 42)
 	else if (!police.stars) return
 	else if (i === 1) police.blackout = clock + 7
@@ -20,7 +21,6 @@ export function callCrew(game, presses) {
 		unit.speed *= .32
 		game.effects.sparks(unit.x, .35, unit.z)
 	}
-	const crew = CREW[i]
 	crewReady[i] = clock + crew.wait
 	game.speak(crew.name, crew.detail, 5)
 	game.audio.effect('radio')

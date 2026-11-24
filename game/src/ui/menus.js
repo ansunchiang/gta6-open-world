@@ -1,6 +1,5 @@
 import {WEAPONS, buyWeapon} from '../combat/weapons.js'
-import {garageUpgrades} from '../progression/garageUpgrades.js'
-import {respectRank} from '../progression/respect.js'
+import {garageUpgrades, respectRank} from '../progression/careerStats.js'
 import {createTitleScreen, id, money} from './titleScreen.js'
 import {createPauseAtlas} from './pauseAtlas.js'
 
@@ -27,11 +26,12 @@ export function createMenus(game, clearQueued) {
 	function show(next, tab) {
 		const dialog = next === 'help' || next === 'settings'
 		if (dialog) back = mode
+		const background = dialog ? back : next
 		game.input.reset()
 		clearQueued()
 		mode = next
-		title.hidden = (dialog ? back : next) !== 'title'
-		atlas.hidden = (dialog ? back : next) !== 'pause'
+		title.hidden = background !== 'title'
+		atlas.hidden = background !== 'pause'
 		title.inert = atlas.inert = dialog
 		const heading = dialogs[mode]
 		const stock = shops[mode]
@@ -55,8 +55,8 @@ export function createMenus(game, clearQueued) {
 			const price = item.price + (level ?? 0) * 90
 			const capped = level >= 2 || player.loadout[id]?.owned
 			const locked = item.rank > rank
-			const label = level == null ? name : `${name} · Lv ${level}`
 			const cost = capped ? 'FULL' : locked ? 'RANK ' + item.rank : money(price)
+			const label = level == null ? name : `${name} · Lv ${level}`
 			list.insertAdjacentHTML('beforeend', `<button class=quiet><b>${label}</b><span>${cost}</span></button>`)
 			const button = list.lastChild
 			button.disabled = capped || locked || player.money < price

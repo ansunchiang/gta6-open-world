@@ -12,15 +12,13 @@ import {createActivities} from '../missions/activities.js'
 import {STORY} from '../missions/storyJobs.js'
 import {PLACES} from './cityLayout.js'
 import {createLoadout} from '../combat/weapons.js'
-import {STATIONS} from '../audio/radioStations.js'
 import {createExplosions} from '../render/explosions.js'
 import {updateVehicleDamage} from '../vehicles/vehicleDamage.js'
 import {createChaseCamera} from '../render/chaseCamera.js'
-import {createEffects, createSirenGlow} from '../render/effects.js'
+import {createEffects, createSirenGlow, createRoadGlow} from '../render/effects.js'
 import {createAtmosphere} from '../render/atmosphere.js'
-import {createSynth} from '../audio/synth.js'
-import {createSaveSlots} from '../save/saveSlots.js'
-import {snapshotCareer} from '../save/saveSystem.js'
+import {createSynth, STATIONS} from '../audio/synth.js'
+import {createSaveSlots, snapshotCareer} from '../save/saveSystem.js'
 import {buildStanding, careerStats} from '../progression/careerStats.js'
 import {callCrew} from '../progression/crewAbilities.js'
 
@@ -32,8 +30,9 @@ export function createSimulation(scene, camera, seed, input, practice) {
 	const cars = createTraffic(scene, random)
 	const parked = cars.map(car => ({...car}))
 	const people = createPedestrians(scene, city, random)
-	const atmosphere = createAtmosphere(scene)
+	const lightWorld = createAtmosphere(scene, city.water)
 	const sirens = createSirenGlow(scene)
+	const roadGlow = createRoadGlow(scene, city.pools)
 	const rig = createChaseCamera(camera, city)
 	const police = createPolice(), audio = createSynth()
 	const game = {
@@ -46,6 +45,11 @@ export function createSimulation(scene, camera, seed, input, practice) {
 	const activities = game.activities = createActivities(game)
 	const markers = createMarkers(scene, activities)
 	const {saves, explosions, effects} = game
+	function prunePeople(remove) {
+		for (let i = people.length - 1; i >= 0; i--) {
+			if (remove(people[i])) people.splice(i, 1)[0].model.node.removeFromParent()
+		}
+	}
 
 	game.objective = () => activities.objective() ?? missions.objective()
 	game.toast = (text, type, seconds = 2.8) => game.notice = {text, type, until: game.clock + seconds}
@@ -64,8 +68,7 @@ export function createSimulation(scene, camera, seed, input, practice) {
 	}
 	player.onCrime = severity => {
 		reportCrime(police, severity, player)
-		const {career} = game
-		career.wanted = Math.max(career.wanted, Math.ceil(police.heat - .001))
+		game.career.wanted = Math.max(game.career.wanted, Math.ceil(police.heat - .001))
 	}
 
 	function reset(saved, retry = false) {
@@ -76,7 +79,7 @@ export function createSimulation(scene, camera, seed, input, practice) {
 		cars.forEach((car, i) => Object.assign(car, {
 			claimed: false, exploded: false, smokeTime: 0, doorSwing: 0, jump: null, lift: 0, ...parked[i],
 		}))
-		prune(people, person => person.expires != null)
+		prunePeople(person => person.expires != null)
 		for (const person of people) Object.assign(person, {health: 100, down: 0, panic: 0, alarm: null})
 		Object.assign(game, {
 			notice: null, dialogue: null, timeOfDay: 990, crewReady: [],
@@ -92,7 +95,6 @@ export function createSimulation(scene, camera, seed, input, practice) {
 			armor: saved?.armor ?? 50, money: saved?.money ?? 140, rep: saved?.rep ?? 0,
 			loadout: createLoadout(saved?.loadout, saved?.reserve),
 		})
-		player.model.node.visible = true
 		game.upgrades = {...(saved?.upgrades ?? {engine: 0, armor: 0, weapon: 0})}
 		missions.setChapter(chapter)
 		activities.reset(saved?.stashes)
@@ -110,10 +112,8 @@ export function createSimulation(scene, camera, seed, input, practice) {
 		game.menus.show('play')
 	}
 	game.retry = () => {
-		const career = snapshotCareer(game)
-		career.money = Math.max(0, career.money - 35)
-		career.safehouse = false
-		reset(career, true)
+		const save = snapshotCareer(game)
+		reset({...save, money: Math.max(0, save.money - 35), safehouse: false}, true)
 		game.menus.show('play')
 		game.save()
 	}
@@ -128,8 +128,7 @@ export function createSimulation(scene, camera, seed, input, practice) {
 	function simulate(controls, dt) {
 		const now = game.clock += dt
 		game.timeOfDay = (game.timeOfDay + dt * 1.32) % 1440
-		if (game.notice?.until < now) game.notice = null
-		if (game.dialogue?.until < now) game.dialogue = null
+		for (const key of ['notice', 'dialogue']) if (game[key]?.until < now) game[key] = null
 		const {presses} = controls
 		if (presses.has('KeyE')) interact()
 		if (game.menus.mode !== 'play') return
@@ -149,7 +148,7 @@ export function createSimulation(scene, camera, seed, input, practice) {
 		updatePedestrians(people, player, city, dt, now)
 		updateGuards(game, dt)
 		updateVehicleDamage(game, dt)
-		prune(people, person => person.expires <= now)
+		prunePeople(person => person.expires <= now)
 		missions.update(dt)
 		activities.update(dt)
 		effects.update(dt)
@@ -159,15 +158,19 @@ export function createSimulation(scene, camera, seed, input, practice) {
 	function renderState(controls, dt, title = false) {
 		if (title) {
 			const orbit = game.stillTitle ? 0 : game.clock * .037
-			const x = 262 + Math.sin(orbit) * 24, z = 147 + Math.cos(orbit) * 19
-			camera.position.set(x, 53, z)
-			camera.lookAt(99, 11, -34)
-			camera.fov = 52
-			camera.updateProjectionMatrix()
+			camera.position.set(250 + Math.sin(orbit) * 21, 58, 193 + Math.cos(orbit) * 19)
+			camera.lookAt(147, 9, -105)
+			if (camera.fov !== 54) {
+				camera.fov = 54
+				camera.updateProjectionMatrix()
+			}
 		} else rig.update(player, controls, dt)
-		atmosphere.update(title ? 962 : game.timeOfDay, title ? {x: 145, z: 41} : player, camera, city.water)
+		lightWorld(title ? 1089 : game.timeOfDay, title ? {x: 166, z: 45} : player, camera)
 		camera.updateMatrixWorld()
-		city.neon.emissiveIntensity = 1.6 - city.water.sun.value * 1.25
+		const dark = 1 - city.water.sun.value
+		city.neon(dark)
+		roadGlow(cars, title ? .42 : dark)
+		city.windows.color.setScalar(.11 + dark * .89 + city.water.dusk.value * .13)
 		city.water.time.value = game.clock
 		markers(game.objective(), game.clock)
 		sirens(police.units, game.clock)
@@ -179,14 +182,4 @@ export function createSimulation(scene, camera, seed, input, practice) {
 		updateTraffic(cars, player, city, dt, time)
 		updatePedestrians(people, {x: 79, z: 36}, city, dt, time)
 	}})
-}
-
-function prune(actors, shouldRemove) {
-	for (let index = actors.length - 1; index >= 0; index--) {
-		const actor = actors[index]
-		if (!shouldRemove(actor)) continue
-		const node = actor.node ?? actor.model.node
-		node.removeFromParent()
-		actors.splice(index, 1)
-	}
 }

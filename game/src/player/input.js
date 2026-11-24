@@ -41,7 +41,7 @@ export function createInput(canvas) {
 	const axis = (positive, negative) => Number(down(...positive)) - Number(down(...negative))
 	return {
 		reset,
-		take(key) { return presses.delete(key); },
+		take: key => presses.delete(key),
 		poll() {
 			const controls = {
 				throttle: axis(['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown']),

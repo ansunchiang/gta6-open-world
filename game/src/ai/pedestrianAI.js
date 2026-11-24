@@ -16,25 +16,19 @@ export function createPedestrians(scene, city, random) {
 		const corners = [{x: l, z: t}, {x: r, z: t}, {x: r, z: b}, {x: l, z: b}]
 		for (let i = 0; i < 3; i++) {
 			const side = (i + block) % 4
-			const start = corners[side]
-			const next = corners[(side + 1) % 4]
+			const routeIndex = (side + 1) % 4
+			const start = corners[side], next = corners[routeIndex]
 			const p = random()
 			const person = spawnPerson(scene, start.x + (next.x - start.x) * p, start.z + (next.z - start.z) * p,
 				outfits[(block + i * 3) % outfits.length], (i + block) % 5, 'civilian')
-			person.route = corners
-			person.routeIndex = (side + 1) % 4
-			person.pace = 1.28 + random() * .68
-			people.push(person)
+			people.push(Object.assign(person, {route: corners, routeIndex, pace: 1.28 + random() * .68}))
 		}
 	})
 	for (let i = 0; i < 19; i++) {
 		const x = i % 2 === 0 ? 191.6 : 197
 		const z = -153 + i * 17
 		const person = spawnPerson(scene, x, z, outfits[i % outfits.length], i % 5, 'civilian')
-		person.route = [{x, z: -179}, {x, z: 179}]
-		person.routeIndex = i % 2
-		person.pace = 1.26 + random() * .57
-		people.push(person)
+		people.push(Object.assign(person, {route: [{x, z: -179}, {x, z: 179}], routeIndex: i % 2, pace: 1.26 + random() * .57}))
 	}
 	return people
 }

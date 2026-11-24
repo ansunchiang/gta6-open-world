@@ -2,8 +2,7 @@ import {CONTACTS, STORY} from './storyJobs.js'
 import {deployGuards} from '../ai/guardAI.js'
 import {spawnPerson} from '../ai/pedestrianAI.js'
 import {distance} from '../render/geometry.js'
-import {respectRank} from '../progression/respect.js'
-import {earnCash} from '../progression/careerStats.js'
+import {earnCash, respectRank} from '../progression/careerStats.js'
 
 export function createMissionManager(game) {
 	let chapter = 0, stage = 0, contact, remaining, held
@@ -11,8 +10,8 @@ export function createMissionManager(game) {
 	const plan = () => STORY[chapter]
 	const step = () => plan()?.steps[stage - 1]
 	const ready = () => respectRank(player.rep).level >= plan().rank
-	const opponents = () => game.guards.filter(guard => !guard.down)
-	const point = current => !current ? plan().anchor : current.vehicle === 'courier' ? cars[0] : current.point
+	const opponents = () => game.guards.filter(guard => !guard.down).length
+	const point = current => current?.vehicle === 'courier' ? cars[0] : current ? current.point : plan().anchor
 	const inRide = (ride, vehicle) => vehicle === 'courier' ? ride === cars[0] : ride?.type === vehicle
 
 	function setChapter(index) {
@@ -31,7 +30,7 @@ export function createMissionManager(game) {
 		const job = plan()
 		if (!job) return {title: 'The city is yours', task: 'Explore or run side jobs'}
 		const current = step()
-		const guards = current?.guards && current.type !== 'hold' && opponents().length
+		const guards = current?.guards && current.type !== 'hold' && opponents()
 		return {
 			title: job.title, contact: job.contact, number: chapter + 1, total: STORY.length,
 			stage: stage + 1, stages: job.steps.length + 1, remaining,
@@ -45,8 +44,8 @@ export function createMissionManager(game) {
 
 	function advance() {
 		const job = plan()
-		stage++
-		if (stage > job.steps.length) {
+		const current = job.steps[stage++]
+		if (!current) {
 			earnCash(game, job.reward, 29)
 			player.rep += 110 + chapter * 65
 			player.health = Math.min(100, player.health + 32)
@@ -58,7 +57,6 @@ export function createMissionManager(game) {
 			game.save()
 			return
 		}
-		const current = step()
 		held = 0
 		remaining = current.timer ?? null
 		if (current.guards) deployGuards(game, current.point, current.guards)
@@ -73,7 +71,7 @@ export function createMissionManager(game) {
 		if (!stage) return !player.car && ready() ? 'Talk to ' + job.contact : ''
 		if (current.type !== 'interact' || current.foot && player.car ||
 				current.vehicle && !inRide(player.car, current.vehicle) ||
-				current.guards && opponents().length) return ''
+				current.guards && opponents()) return ''
 		return current.task
 	}
 

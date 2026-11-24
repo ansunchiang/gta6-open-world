@@ -20,7 +20,7 @@ function boot() {
 	renderer.shadowMap.enabled = true
 	renderer.shadowMap.type = T.PCFShadowMap
 	renderer.toneMapping = T.ACESFilmicToneMapping
-	renderer.toneMappingExposure = 1.29
+	renderer.toneMappingExposure = 1.16
 	const scene = new T.Scene()
 	const camera = new T.PerspectiveCamera(64, 1, .16, 1600)
 	const input = createInput(canvas)

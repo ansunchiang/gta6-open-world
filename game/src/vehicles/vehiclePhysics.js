@@ -1,6 +1,6 @@
 import {createVehicleModel, VEHICLE_TYPES, flashSiren} from './vehicleModel.js'
 import {advance, bearing, blend, clamp, distance, offset, turn} from '../render/geometry.js'
-import {marineStep} from '../world/marina.js'
+import {marineStep} from '../world/waterfront.js'
 
 export function spawnVehicle(scene, type, color, x, z, heading, mode) {
 	const model = createVehicleModel(scene, type, color)
@@ -15,7 +15,8 @@ export function syncVehicle(car, clock) {
 	const {node, door, x, z, heading, speed, steering, impact, doorSwing = 0} = car
 	const lift = car.type === 'boat' ? Math.sin(clock * 2.3 + car.phase) * .07 : car.lift ?? 0
 	node.position.set(x, lift, z)
-	node.rotation.set(Math.min(.04, impact * .04) * Math.sin(clock * 39), -heading, -steering * Math.min(Math.abs(speed) / 100, .13), 'YXZ')
+	const roll = car.wreckRoll ?? -steering * Math.min(Math.abs(speed) / 100, .13)
+	node.rotation.set(Math.min(.04, impact * .04) * Math.sin(clock * 39), -heading, roll, 'YXZ')
 	door.visible = doorSwing > .02
 	door.rotation.y = -doorSwing
 	flashSiren(car, clock)
@@ -47,23 +48,23 @@ export function driveVehicle(car, input, city, vehicles, dt, effects, upgrades, 
 		speed += throttle * accel * boost * thrust * dt
 	}
 	const friction = throttle ? .09 + (brake ? bite * .21 : 0) : drag + (brake ? bite : .09)
-	const before = clamp(speed * exp(-dt * friction), -12, top)
+	const before = clamp(speed * exp(-dt * friction), -12, top), pace = abs(before)
 	const slide = brake && type !== 'boat' ? .54 : 0
 	const grip = car.lift > .9 ? .24 : 1
-	const agility = gain + slide - .27 * min(1, abs(before) / top)
+	const agility = gain + slide - .27 * min(1, pace / top)
 	car.heading += car.steering * agility * clamp(before / onset, -1, 1) * grip * dt
 	const {x, z} = offset(car, before * dt)
 	const bumped = type === 'boat' ? marineStep(car, x, z) : city.move(car, x, z, radius, true)
 	car.speed = bumped ? before * -.24 : before
-	if (car.lift <= 1.5 || !car.lift) {
+	if ((car.lift ?? 0) <= 1.5 && before) {
 		const nose = offset(car, Math.sign(before) * length * .4)
 		const other = vehicles.find(ride => ride !== car && ride.mode !== 'held' &&
 			distance(ride, nose) < (width + VEHICLE_TYPES[ride.type].width) * .49)
-		if (other && before) {
+		if (other) {
 			car.speed = Math.sign(before) * min(abs(car.speed), abs(other.speed)) * .39
 			other.impact = .72
-			if (abs(before) > 7 && car.impact <= 0) {
-				other.health -= abs(before) * 1.32
+			if (pace > 7 && car.impact <= 0) {
+				other.health -= pace * 1.32
 				onCrash(other)
 			}
 		}

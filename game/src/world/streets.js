@@ -1,5 +1,5 @@
 import {GRID, LAND, southBank} from './cityLayout.js'
-import {T, GeometryBatch, addMesh, cylinder, texture} from '../render/geometry.js'
+import {T, GeometryBatch, cylinder, groundShape, texture} from '../render/geometry.js'
 import {createRandom} from '../random.js'
 
 function asphalt() {
@@ -14,14 +14,11 @@ function asphalt() {
 	})
 	map.wrapS = map.wrapT = T.RepeatWrapping
 	map.repeat.set(.32, .32)
-	return new T.MeshStandardMaterial({map, roughness: .94})
+	return new T.MeshStandardMaterial({map, roughness: .83})
 }
 
-export function buildStreets(scene) {
-	const shape = new T.Shape(LAND.map(([x, z]) => new T.Vector2(x, -z)))
-	const ground = addMesh(scene, new T.ShapeGeometry(shape), asphalt(), 0, -.035, 0, false)
-	ground.rotation.x = -Math.PI / 2
-	ground.receiveShadow = true
+export function buildStreets(scene, lampsOn) {
+	groundShape(scene, LAND, asphalt(), -.035)
 	const marks = new GeometryBatch(), lamps = new GeometryBatch()
 	for (const north of [true, false]) for (const road of GRID) {
 		function mark(color, across, along, width, length) {
@@ -43,6 +40,7 @@ export function buildStreets(scene) {
 			if (z > southBank(x) || Math.abs(x) > 194) continue
 			lamps.add(cylinder(.07, .11), '#414950', x, 2.36, z, 1, 4.7, 1)
 			lamps.box('#d9bc97', x, 4.6, z, .57, .15, .53)
+			lampsOn.push([x - (north ? 2 : 0), z - (north ? 0 : 2), 10, 10, '#c3a27d', .13])
 		}
 	}
 	marks.make(scene, {}, false).receiveShadow = true

@@ -29,34 +29,30 @@ export function createActivities(game) {
 	const {player, audio, police} = game
 	const within = (point, radius) => distance(player, point) < radius
 	const stopped = speed => Math.abs(player.car?.speed ?? 0) < speed
-	const arrival = () => job?.type === 'delivery' && within(PLACES.market, 6) && stopped(3)
+	const delivered = () => job?.type === 'delivery' && within(PLACES.market, 6) && stopped(3)
 	function nearby() {
 		const boat = player.car?.type === 'boat'
-		return ACTIVITIES.find(site => {
-			if (site.type === 'boat') return boat && within(site, 25)
-			if (site.type === 'race' && (!player.car || boat)) return false
-			return within(site, 4.8)
-		})
+		return ACTIVITIES.find(site => site.type === 'boat' ? boat && within(site, 25) :
+			(site.type !== 'race' || player.car && !boat) && within(site, 4.8))
 	}
 
 	function interact() {
-		if (arrival()) return finish()
-		if (job) return false
-		const site = nearby()
+		if (delivered()) return finish()
+		const site = !job && nearby()
 		if (!site) return false
-		const {type} = site
-		if (terms[type]) {
-			job = {...site, time: terms[type][0], index: 0}
+		const {type} = site, contract = terms[type]
+		if (contract) {
+			job = {...site, time: contract[0], index: 0}
 			audio.effect('radio')
-		} else {
-			if (type === 'safehouse' ? player.car : !stopped(2)) return false
-			if (police.stars) game.toast('Lose dispatch first', 'SERVICE UNAVAILABLE')
-			else if (type !== 'safehouse') game.menus.show(type)
-			else {
-				player.health = player.armor = 100
-				game.atSafehouse = true
-				game.toast(game.save() ? 'Career saved' : 'Recovered', 'THE SALT FLAT')
-			}
+			return true
+		}
+		if (type === 'safehouse' ? player.car : !stopped(2)) return false
+		if (police.stars) game.toast('Lose dispatch first', 'SERVICE UNAVAILABLE')
+		else if (type !== 'safehouse') game.menus.show(type)
+		else {
+			player.health = player.armor = 100
+			game.atSafehouse = true
+			game.toast(game.save() ? 'Career saved' : 'Recovered', 'THE SALT FLAT')
 		}
 		return true
 	}
@@ -113,7 +109,7 @@ export function createActivities(game) {
 	}
 
 	function prompt() {
-		if (arrival()) return 'Hand over parcel'
+		if (delivered()) return 'Hand over parcel'
 		const site = !job && nearby()
 		if (!site) return ''
 		if (site.type === 'safehouse') return player.car ? '' : 'Use safehouse'

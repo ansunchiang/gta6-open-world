@@ -25,7 +25,7 @@ export function updateVehicleDamage(game, dt) {
 		if (car.health < 16) {
 			explosions.flame(x, z, clock * 8 + phase)
 			if (!car.exploded) car.health -= 2.5
-		} else explosions.plume(x, 1.02, z, 1.02, 1.9, false, phase)
+		} else explosions.plume(x, 1.1, z, 2.3, 2.8, false, phase)
 	}
 	explosions.update(dt)
 }

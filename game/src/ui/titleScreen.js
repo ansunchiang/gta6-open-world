@@ -1,5 +1,5 @@
 import {STORY} from '../missions/storyJobs.js'
-import {completion} from '../progression/completion.js'
+import {completion} from '../progression/careerStats.js'
 
 export const id = name => document.getElementById(name)
 export const format = new Intl.NumberFormat('en-US').format

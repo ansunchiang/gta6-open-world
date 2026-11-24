@@ -1,7 +1,6 @@
 import {DISTRICTS} from '../world/cityLayout.js'
 import {STORY} from '../missions/storyJobs.js'
-import {completion} from '../progression/completion.js'
-import {standingName} from '../progression/careerStats.js'
+import {completion, standingName} from '../progression/careerStats.js'
 import {CREW} from '../progression/crewAbilities.js'
 import {drawMap} from './minimap.js'
 import {drawPortrait} from './portraits.js'
@@ -17,16 +16,15 @@ export function createPauseAtlas(game, show) {
 	const page = id('atlas-page'), nav = id('atlas-tabs')
 	let selected = 'Map', pending
 	nav.innerHTML = tabs.map(name => `<button>${name}</button>`).join('')
-	for (const button of nav.children) button.onclick = () => select(button.textContent)
+	nav.onclick = ({target}) => { if (target.tagName === 'BUTTON') select(target.textContent) }
 
 	function open(tab = selected) {
 		const {career, missions, activities} = game
 		const {percent, rows} = completion(missions.chapter, career, activities.stashes.size)
-		const ring = id('completion-ring'), value = percent + '%'
+		const ring = id('completion-ring'), value = `${percent}%`
 		ring.firstChild.textContent = value
 		ring.style.setProperty('--percent', value)
-		id('checklist').innerHTML = rows.map(([name, done, total]) =>
-			row(name, `${done}/${total}`)).join('')
+		id('checklist').innerHTML = rows.map(([name, done, total]) => row(name, `${done}/${total}`)).join('')
 		id('district-bars').innerHTML = DISTRICTS.map(({name, color}, i) => {
 			const points = career.standing[i]
 			return `<div style="--meter:${color}"><span>${name}</span><b>${standingName(points)}</b><progress max=100 value=${points}></progress></div>`
@@ -61,8 +59,7 @@ export function createPauseAtlas(game, show) {
 		if (tab === 'Save') {
 			pending = -1
 			section('Save career', `<div class=slots></div><p id=save-feedback role=status></p>
-				<button class=quiet value=help>Controls</button>
-				<button class=quiet value=settings>Settings</button>
+				<button class=quiet value=help>Controls</button> <button class=quiet value=settings>Settings</button>
 				<button class=quiet value=title>Title screen</button>`)
 			slots()
 			for (const button of page.querySelectorAll('button.quiet')) button.onclick = () => show(button.value)
@@ -81,12 +78,10 @@ export function createPauseAtlas(game, show) {
 				return
 			}
 			pending = -1
-			if (!game.save(i)) {
-				feedback.textContent = 'Storage unavailable.'
-				return
-			}
-			feedback.textContent = `Career saved to slot ${i + 1}.`
-			slots()
+			if (game.save(i)) {
+				feedback.textContent = `Career saved to slot ${i + 1}.`
+				slots()
+			} else feedback.textContent = 'Storage unavailable.'
 		})
 	}
 	return open

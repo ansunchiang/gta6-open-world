@@ -36,7 +36,7 @@ try {
   page.on('request', request => { if (!request.url().startsWith(origin + '/')) errors.push('Unexpected request ' + request.url()); });
   if (process.argv.includes('--test')) {
     const { playTest } = await import('./play-test.mjs');
-    await playTest(page, origin);
+    await playTest(page, origin, Number(process.argv[3] ?? 840));
   } else {
     const shots = manifest.filter(shot => !process.argv[2] || shot.name.startsWith(process.argv[2]));
     assert(shots.length, 'No matching capture');

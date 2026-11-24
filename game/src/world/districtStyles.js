@@ -1,12 +1,13 @@
-import {T, GeometryBatch} from '../render/geometry.js'
+import {T, GeometryBatch, sprite} from '../render/geometry.js'
+import {radialTexture} from '../render/effects.js'
 import {streetSign} from './architecture.js'
 import {PLACES} from './cityLayout.js'
 
 export const CAUSEWAY = {x: 181, z: 120, end: 282}
 
-export function buildDistrictLandmarks(scene) {
-	const structures = new GeometryBatch()
-	const emissive = new GeometryBatch()
+export function buildDistrictLandmarks(scene, pools) {
+	const structures = new GeometryBatch(), emissive = new GeometryBatch()
+	const glow = [], map = radialTexture()
 	const {x, z, end} = CAUSEWAY
 	const span = end - x, mid = x + span / 2
 	structures.box('#424d59', mid, -.085, z, span, .3, 17.8)
@@ -35,17 +36,27 @@ export function buildDistrictLandmarks(scene) {
 	for (const [a, b, name, hue, facing] of [
 		[11, 78, 'MARROW CLUB', '#ff5d9e', -1], [-11, 73, 'PINK MARLIN', '#ff8a6a', 1],
 		[11, 44, 'AFTERWAVE', '#5afaee', -1], [-11, 45, 'HALO ROOM', '#ba9bff', 1],
-		[169, 38, 'SUNSPUR HOTEL', '#ffc783', 1], [169, 15, 'BEACON STRAND', '#8ae8da', 1],
+		[169, 38, 'SUNSPUR HOTEL', '#ffc783', 1],
 	]) {
 		streetSign(scene, name, a, 5.15, b, 8.2, 1.65, facing * Math.PI / 2, hue)
 		for (const height of [4.25, 6.04]) emissive.box(hue, a - facing * .08, height, b, .061, .1, 8.4)
 		if (Math.abs(a) < 15) {
 			emissive.box(hue, a + facing * .32, 7.1, b + 3.8, .1, 4.1, .16)
-			const pool = new T.PointLight(hue, 44, 15, 1.75)
-			pool.position.set(a + facing * 2, 3.1, b)
-			scene.add(pool)
+			const halo = sprite(scene, {map, color: hue, blending: T.AdditiveBlending})
+			halo.position.set(a + facing * .54, 5.1, b)
+			halo.scale.set(11, 5.6, 1)
+			halo.visible = true
+			pools.push([a + facing * 5.1, b + 4, 5.8, 21, hue, -.012])
+			glow.push(halo.material)
+			const lamp = new T.PointLight(hue, 44, 15, 1.75)
+			lamp.position.set(a + facing * 2, 3.1, b)
+			scene.add(lamp)
 		}
 	}
 	structures.make(scene, {roughness: .73})
-	return emissive.make(scene, {emissive: '#ffb4df', emissiveIntensity: .48}, false).material
+	const neon = emissive.make(scene, {emissive: '#ffb4df'}, false).material
+	return dark => {
+		neon.emissiveIntensity = .35 + 1.25 * dark
+		for (const material of glow) material.opacity = .56 * dark
+	}
 }

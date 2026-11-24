@@ -1,15 +1,14 @@
 import {drawMap} from './minimap.js'
 import {DISTRICTS, districtAt} from '../world/cityLayout.js'
-import {standingName} from '../progression/careerStats.js'
+import {respectRank, standingName} from '../progression/careerStats.js'
 import {CREW} from '../progression/crewAbilities.js'
 import {nearestVehicle} from '../player/playerController.js'
 import {VEHICLE_TYPES} from '../vehicles/vehicleModel.js'
 import {T, distance} from '../render/geometry.js'
-import {respectRank} from '../progression/respect.js'
-import {createDispatchPanel} from './dispatchPanel.js'
+import {dispatchRoster} from '../ai/policeAI.js'
+import {STATIONS} from '../audio/synth.js'
 import {createWeaponBar} from './weaponBar.js'
 import {drawPortrait} from './portraits.js'
-import {updateVehiclePanel} from './vehiclePanel.js'
 import {clock, format, id, money} from './titleScreen.js'
 
 function setText(node, value) {
@@ -29,12 +28,14 @@ function interaction({player, missions, activities, cars}) {
 
 export function createHud() {
 	const text = (key, value) => setText(id(key), value)
-	const dispatch = createDispatchPanel(id('dispatch-panel'), id('dispatch-roster'))
+	const panel = id('dispatch-panel'), roster = id('dispatch-roster')
+	roster.innerHTML = '<div class=unit></div>'.repeat(6)
 	const weapons = createWeaponBar(id('weapon-bar'))
 	const crew = id('crew')
 	crew.innerHTML = CREW.map(({key, label}) =>
 		`<div><canvas width=64 height=64></canvas><kbd>${key}</kbd><b>${label}</b><span></span></div>`).join('')
-	for (const [i, card] of Array.from(crew.children).entries()) drawPortrait(card.firstChild, CREW[i].name)
+	const cards = Array.from(crew.children)
+	cards.forEach((card, i) => drawPortrait(card.firstChild, CREW[i].name))
 	const [filled, empty] = id('stars').children
 	const projection = new T.Vector3()
 	let lastMap = -1, speaker
@@ -63,6 +64,20 @@ export function createHud() {
 		const meter = id('evasion')
 		meter.hidden = !search.sweeping
 		meter.value = search.progress
+	}
+
+	function dispatch(police, player) {
+		const units = dispatchRoster(police, player)
+		panel.hidden = !units.length
+		Array.from(roster.children).forEach((row, i) => {
+			const unit = units[i]
+			row.hidden = !unit
+			if (!unit) return
+			const {name, range, tactic} = unit
+			const html = `<b>${name}</b><small>${range}m</small><span>${tactic}</span>`
+			if (row.innerHTML !== html) row.innerHTML = html
+			row.dataset.tactic = tactic
+		})
 	}
 
 	function waypoint(point, player, camera) {
@@ -98,9 +113,13 @@ export function createHud() {
 			text(stat + '-value', Math.ceil(player[stat]))
 		}
 		id('respect').value = rank.fraction
-		updateVehiclePanel(game, text)
-		for (const [index, card] of Array.from(crew.children).entries()) {
-			const seconds = Math.ceil((crewReady[index] ?? 0) - now)
+		const {car} = player, {name, song} = STATIONS[game.station]
+		text('radio', `V · ${name} / ${song}`)
+		text('equip-name', car ? VEHICLE_TYPES[car.type].name.toUpperCase() : 'ON FOOT')
+		text('equip-value', car ? Math.round(Math.abs(car.speed) * 3.6) : 'MARA')
+		text('equip-label', car ? `KM/H · ${Math.ceil(Math.max(0, car.health))}% COND` : 'FIELD KIT')
+		for (const [i, card] of cards.entries()) {
+			const seconds = Math.ceil((crewReady[i] ?? 0) - now)
 			setText(card.lastChild, seconds > 0 ? seconds + 's' : 'Ready')
 		}
 		weapons(player)

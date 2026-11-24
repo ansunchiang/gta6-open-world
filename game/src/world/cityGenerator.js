@@ -1,11 +1,10 @@
 import {GRID, EDGE, SHORE, districtAt, southBank} from './cityLayout.js'
 import {buildStreets} from './streets.js'
 import {decoBuilding, palm, relayCrown, streetSign} from './architecture.js'
-import {buildWaterfront} from './waterfront.js'
+import {buildWaterfront, slips} from './waterfront.js'
 import {T, GeometryBatch, clamp} from '../render/geometry.js'
 import {createRandom} from '../random.js'
 import {buildDistrictLandmarks} from './districtStyles.js'
-import {buildMarina, slips} from './marina.js'
 import {buildRamps} from '../progression/stuntJumps.js'
 
 const palettes = {
@@ -21,10 +20,10 @@ const signs = [['SEA GLASS','#96f7dc'], ['MOTH MOTEL','#e6acfc'], ['BAY RADIO','
 export function generateCity(scene, seed) {
 	const random = createRandom(seed)
 	const footprints = [], sidewalks = [], cells = new Map()
-	buildStreets(scene)
+	const pools = []
+	buildStreets(scene, pools)
 	const water = buildWaterfront(scene, random)
-	const neon = buildDistrictLandmarks(scene)
-	buildMarina(scene)
+	const neon = buildDistrictLandmarks(scene, pools)
 	buildRamps(scene)
 	const slabs = new GeometryBatch(), lights = new GeometryBatch()
 
@@ -58,7 +57,7 @@ export function generateCity(scene, seed) {
 			const relay = x === 30 && z === -150 && dx === -1 && dz === 1
 			const tower = relay || name === 'Glasspoint' && random() < .76
 			const h = relay ? 51 : tower ? 24 + random() * 29 : 7.2 + random() * (harbor ? 3 : 9)
-			decoBuilding(block, lights, bx, bz, w, d, h, body, tower, random)
+			decoBuilding(block, lights, {x: bx, z: bz, w, d, h, body, tall: tower}, random)
 			solid({x: bx, z: bz, w, d, h: h + 1})
 			if (relay) relayCrown(block, lights, bx, h + 1, bz)
 			if (!tower && !harbor) {
@@ -80,14 +79,15 @@ export function generateCity(scene, seed) {
 		cranes.box('#d2946b', -191, 18.5, z, 23, .73, 1.48)
 		cranes.box('#7d5a4c', -181, 15.3, z, .1, 6.4, .1)
 	}
+	cranes.make(scene)
 
 	slabs.make(scene, {}, false).receiveShadow = true
-	cranes.make(scene)
-	lights.make(scene, {emissive: '#ffaa86', emissiveIntensity: .55}, false)
+	const windows = new T.MeshBasicMaterial({vertexColors: true})
+	lights.make(scene, windows, false)
 
 	function solid(building) {
 		footprints.push(building)
-		const {x, z, w, d} = building
+		const {x, z} = building
 		const column = cell(x), row = cell(z)
 		for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
 			const key = (column + dx) * 64 + row + dz
@@ -98,8 +98,8 @@ export function generateCity(scene, seed) {
 
 	function cell(value) { return Math.floor(value / 24) }
 	function obstacle(x, z, radius = .4, height = 0) {
-		const nearby = cells.get(cell(x) * 64 + cell(z)) ?? []
-		return nearby.some(s => height < s.h && Math.abs(x - s.x) < s.w / 2 + radius && Math.abs(z - s.z) < s.d / 2 + radius)
+		return cells.get(cell(x) * 64 + cell(z))?.some(s =>
+			height < s.h && Math.abs(x - s.x) < s.w / 2 + radius && Math.abs(z - s.z) < s.d / 2 + radius) ?? false
 	}
 	function move(entity, x, z, radius, vehicle = false) {
 		const pier = vehicle ? undefined : slips.find(line => Math.abs(entity.z - line) < 2.7)
@@ -114,7 +114,7 @@ export function generateCity(scene, seed) {
 		if (!blockedZ) entity.z = z
 		return blockedX || blockedZ
 	}
-	return {footprints, sidewalks, water, neon, obstacle, move}
+	return {footprints, sidewalks, water, neon, windows, pools, obstacle, move}
 }
 
 const cargo = ['#bd644d', '#4a8190', '#c2a471', '#87908a']

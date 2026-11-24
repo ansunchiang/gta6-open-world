@@ -1,7 +1,6 @@
 import {advance, bearing, clamp, distance, offset} from '../render/geometry.js'
 import {closestStreet} from '../world/cityLayout.js'
 import {guideVehicle, spawnVehicle, syncVehicle} from '../vehicles/vehiclePhysics.js'
-import {registerUnit} from './dispatchRoster.js'
 import {planRoadblock} from './roadblocks.js'
 import {removeHelicopter, updateHelicopter} from './helicopterAI.js'
 import {updateOfficers} from './patrolOfficers.js'
@@ -34,11 +33,22 @@ export function lineClear(city, from, to, height = .8, radius = .34) {
 export function addInterceptor(game, x, z, heading) {
 	const {police} = game
 	const car = spawnVehicle(game.scene, 'patrol', '#27394c', x, z, heading, 'police')
-	Object.assign(car, {speed: 8.7, driver: true, fire: 1 + police.units.length * .38, recover: 0, flank: !!(police.sequence % 2)})
-	registerUnit(police, car)
+	const number = police.sequence++
+	const callsign = callsigns[number % callsigns.length] + '-' + (12 + number)
+	Object.assign(car, {speed: 8.7, driver: true, fire: 1 + police.units.length * .38,
+		recover: 0, flank: !!(number % 2), callsign, tactic: 'PATROL'})
 	game.cars.push(car)
 	police.units.push(car)
 	return car
+}
+
+const callsigns = ['GULL', 'REEF', 'TIDE', 'PIER', 'BUOY', 'JETTY']
+
+export function dispatchRoster({units, air}, player) {
+	const row = (actor, name, tactic) => ({name, tactic, range: Math.round(distance(actor, player))})
+	const ground = units.map(unit => row(unit, unit.callsign, unit.tactic)).sort((a, b) => a.range - b.range)
+	if (air) ground.unshift(row(air, 'KITE-01', air.visible ? 'SPOTLIGHT' : 'AIR SWEEP'))
+	return ground.slice(0, 6)
 }
 
 function dispatch(game, target) {
@@ -67,8 +77,8 @@ export function clearPolice(game) {
 	for (const car of police.units) {
 		if (car.claimed) continue
 		car.node.removeFromParent()
-		const parked = cars.indexOf(car)
-		if (parked >= 0) cars.splice(parked, 1)
+		const index = cars.indexOf(car)
+		if (index !== -1) cars.splice(index, 1)
 	}
 	Object.assign(police, createPolice())
 }

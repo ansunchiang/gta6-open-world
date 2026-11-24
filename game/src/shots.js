@@ -12,27 +12,29 @@ import {PLACES} from './world/cityLayout.js'
 import {NEUTRAL} from './world/simulation.js'
 
 const STEP = 1 / 60
-const move = (actor, x, z, heading) => Object.assign(actor, {x, z, heading})
-
-function begin(game, chapter, {x, z}) {
+function begin(game, chapter, {x, z}, timeOfDay) {
 	game.missions.setChapter(chapter)
-	move(game.player, x - 2.1, z + 3, 0)
+	Object.assign(game.player, {x: x - 2.1, z: z + 3, heading: 0})
 	game.interact()
 	game.police.cooldown = game.police.blockDelay = 8
+	game.timeOfDay = timeOfDay
 }
 
-function wreck(game, x, z, heading, color) {
-	const car = spawnVehicle(game.scene, 'van', color, x, z, heading, 'parked')
-	car.health = 0
+function wreck(game) {
+	const car = spawnVehicle(game.scene, 'patrol', '#263346', 185, 83.5, -1.04, 'parked')
 	game.cars.push(car)
-	for (let frame = 0; frame < 46; frame++) updateVehicleDamage(game, STEP)
+	Object.assign(car, {health: 26, wreckRoll: 1.13, lift: .746})
+	for (let i = 0; i < 91; i++) {
+		if (i === 80) car.health = 0
+		updateVehicleDamage(game, STEP)
+	}
 }
 
 function chase(game) {
-	const {player, police, scene, effects} = game
-	begin(game, 5, PLACES.race)
+	const {player, police, scene} = game
+	begin(game, 5, PLACES.race, 1092)
 	const car = game.cars.find(ride => ride.type === 'tide')
-	move(car, 179.6, 95.5, -.035)
+	Object.assign(car, {x: 179.6, z: 95.5, heading: -.035})
 	enterVehicle(game, car, false)
 	game.simulate(NEUTRAL, STEP)
 	Object.assign(car, {speed: 30.5, health: 74})
@@ -41,15 +43,14 @@ function chase(game) {
 	player.onCrime(5)
 	Object.assign(police, {stars: 5, contact: true})
 	for (const [x, z, heading, tactic] of [
-		[175, 98, .24, 'RAMMING'], [184, 97, -.22, 'FLANKING'], [174, 86, .12, 'CLOSING IN'],
+		[175.1, 93.6, .37, 'RAMMING'], [184.8, 93, -.36, 'FLANKING'], [173.5, 84.8, .16, 'CLOSING IN'],
 	]) {
 		addInterceptor(game, x, z, heading).tactic = tactic
 	}
 	deployRoadblock(game, addInterceptor, {x: 180, z: 77}, 0)
-	wreck(game, 184.5, 83.5, -1.04, '#745953')
-	effects.sparks(player.x - 1.1, .32, player.z + 1.4, 26)
-	effects.update(.14)
-	const air = police.air = spawnHelicopter(scene, player.x + 5.5, player.z - 20, 10.6)
+	wreck(game)
+	game.effects.update(.08)
+	const air = police.air = spawnHelicopter(scene, player.x + 2.2, player.z - 20, 11.1)
 	air.visible = true
 	poseHelicopter(air, player, .46, .95)
 	game.speak('DEX RILL', 'Take the gap. I’ll meet you at the beacon.')
@@ -60,15 +61,14 @@ function chase(game) {
 
 function street(game) {
 	const {player, scene} = game
-	begin(game, 0, PLACES.garage)
-	move(player, -.8, 85.5, -.12)
-	Object.assign(player, {health: 78, armor: 59})
-	for (const [x, z, color, flee] of [[7, 79, '#ffc074', 1.8], [-7.8, 74, '#7fcebe', -1.3], [-6.3, 80, '#f5abc4', -2.3]]) {
+	begin(game, 0, PLACES.garage, 1320)
+	Object.assign(player, {x: -.8, z: 85.5, heading: -.12, health: 78, armor: 59})
+	for (const [x, z, color, flee] of [[7.2, 78, '#ffc074', 1.8], [-5.7, 77.5, '#7fcebe', -1.3], [-6.7, 82, '#f5abc4', -2.3]]) {
 		const person = spawnPerson(scene, x, z, color, 2, 'civilian', flee)
-		game.people.push(Object.assign(person, {panic: 5, flee}))
+		game.people.push(Object.assign(person, {panic: 5, flee, expires: 15}))
+		animateCharacter(person, .38, 5)
 	}
 	player.onCrime(2.4)
-	wreck(game, 4.4, 75.2, -.93, '#276c78')
 	for (const [x, z, heading, footX, footZ] of [[-2.1, 69.2, 2.89, -4.1, 72.3], [6.4, 66.2, -2.45, 3.5, 68.5]]) {
 		const car = addInterceptor(game, x, z, heading)
 		const officer = deployOfficer(game, car, footX, footZ)
@@ -80,14 +80,13 @@ function street(game) {
 	game.camera.update(player, aim, 0, true)
 	updateCombat(game, {...aim, attack: true}, STEP)
 	player.aim = true
-	game.timeOfDay = 1196
 	game.police.stars = Math.ceil(game.police.heat)
 	game.career.standing[0] = 63
 	game.speak('ROOK', 'Use the cruiser for cover. I’ll call the route.')
 }
 
 export function prepareShot(game, name) {
-	const {menus, player, camera, cars, missions, career, activities, saves} = game
+	const {menus, player, camera, cars, missions, career} = game
 	menus.show('play')
 	player.money = 12740
 	player.rep = 2040
@@ -95,18 +94,18 @@ export function prepareShot(game, name) {
 	if (name === 'street') street(game)
 	if (name === 'atlas' || name === 'title') {
 		career.standing = [88, 62, 76, 41, 24]
-		activities.reset([0, 1, 2, 3])
+		game.activities.reset([0, 1, 2, 3])
 		if (name === 'atlas') {
 			missions.setChapter(5)
 			Object.assign(career, {earned: 14580, stolen: 23, wanted: 5, distance: 70822, jumps: [0], events: ['race', 'delivery']})
-			move(player, 128, 101, .9)
+			Object.assign(player, {x: 128, z: 101, heading: .9})
 			menus.show('pause', 'Map')
 		} else {
 			for (const [slot, chapter, cash, seconds] of [[0, 5, 12740, 8048], [1, 2, 2460, 2790], [2, 7, 19820, 13180]]) {
 				missions.setChapter(chapter)
 				player.money = cash
 				career.seconds = seconds
-				saves.save(slot, game)
+				game.saves.save(slot, game)
 			}
 			game.reset()
 			menus.show('title')

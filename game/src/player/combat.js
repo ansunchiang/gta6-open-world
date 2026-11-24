@@ -1,6 +1,29 @@
 import {warnCrowd} from '../ai/crowdReaction.js'
 import {WEAPONS, weaponById} from '../combat/weapons.js'
-import {renderShot, targetInArc} from '../combat/projectiles.js'
+import {bearing, distance, offset, turn} from '../render/geometry.js'
+import {lineClear} from '../ai/policeAI.js'
+
+function targetInArc(game, reach, heading, arc) {
+	const {player, guards, police, people, cars, city} = game
+	let hit = null, best = reach
+	for (const target of [...guards, ...police.officers, ...people, ...cars]) {
+		if (target === player.car || target.down > 0 || target.health <= 0) continue
+		const range = distance(player, target)
+		const spread = range < 1.5 ? Math.max(.8, arc) : arc
+		if (range > best || Math.abs(turn(heading, bearing(player, target))) > spread || !lineClear(city, player, target, 1.38)) continue
+		hit = target
+		best = range
+	}
+	return hit
+}
+
+export function renderShot({effects}, shooter, heading, target, reach, spread = false, height = 1.46) {
+	const {x, z} = offset(shooter, .95, .26, heading)
+	const range = Math.max(1, (target ? distance(shooter, target) : reach) - .8)
+	effects.flash(x, height, z, heading, range)
+	if (spread) for (const offset of [-.07, -.035, .045, .09]) effects.flash(x, height, z, heading + offset, range, true)
+	if (target) effects.sparks(target.x, target.node ? .9 : 1.25, target.z, spread ? 19 : 10)
+}
 
 function strike(game, target, amount) {
 	target.health -= amount

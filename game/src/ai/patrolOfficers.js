@@ -1,7 +1,7 @@
 import {bearing, distance, offset} from '../render/geometry.js'
 import {animateCharacter} from '../player/characterModel.js'
 import {spawnPerson} from './pedestrianAI.js'
-import {renderShot} from '../combat/projectiles.js'
+import {renderShot} from '../player/combat.js'
 import {lineClear} from './policeAI.js'
 
 export function deployOfficer(game, car, x, z) {

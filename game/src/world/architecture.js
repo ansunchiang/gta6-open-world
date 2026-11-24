@@ -5,13 +5,13 @@ const signPlane = new T.PlaneGeometry(1, 1)
 
 export function streetSign(scene, name, x, y, z, width, height, yaw, color = '#ffe7ba', panel = '#152c38') {
 	if (!signCache.has(name)) {
-		const map = texture(512, 128, ctx => {
+		const map = texture(256, 64, ctx => {
 			ctx.fillStyle = panel
-			ctx.fillRect(0, 0, 512, 128)
+			ctx.fillRect(0, 0, 256, 64)
 			ctx.fillStyle = color
-			ctx.font = 'bold 54px sans-serif'
+			ctx.font = 'bold 27px sans-serif'
 			ctx.textAlign = 'center'
-			ctx.fillText(name, 256, 84, 462)
+			ctx.fillText(name, 128, 42, 231)
 		})
 		signCache.set(name, new T.MeshBasicMaterial({map}))
 	}
@@ -20,7 +20,7 @@ export function streetSign(scene, name, x, y, z, width, height, yaw, color = '#f
 	board.rotation.y = yaw
 }
 
-export function decoBuilding(batch, lights, x, z, w, d, h, body, tall, random) {
+export function decoBuilding(batch, lights, {x, z, w, d, h, body, tall}, random) {
 	const [trim, glass, pitch] = tall ? ['#a9c3bd', '#648a9f', 2.7] : ['#f1d6ae', '#568590', 2.85]
 	const tier = (color, y, width, height, depth) => batch.box(color, x, y, z, width, height, depth)
 	tier(body, h / 2, w, h, d)
@@ -28,34 +28,29 @@ export function decoBuilding(batch, lights, x, z, w, d, h, body, tall, random) {
 	tier(body, h + .53, w * .88, .76, d * .88)
 	if (tall) {
 		tier(trim, h + 1.4, w * .65, 1.35, d * .62)
-		tier(glass, h + 2.25, w * .45, .6, d * .43)
-		lights.box('#ff986c', x, h + 2.56, z, .23, .25, .23)
+		lights.box('#ff986c', x, h + 2.13, z, .23, .25, .23)
 	} else {
-		tier(trim, h - .38, w + .37, .12, d + .37)
 		tier(trim, 3.15, w + .5, .18, d + .5)
 		tier(trim, 1.12, w + .13, 1.92, d + .13)
 	}
 
-	const floors = Math.floor((h - 3.2) / pitch)
-	for (const alongX of [true, false]) {
-		const span = alongX ? w : d
-		const columns = Math.max(2, Math.round(span / (tall ? 2.03 : 3.02)))
+	const floors = Math.floor((h - 3.2) / pitch), occupancy = .12 + .18 * Math.abs(Math.sin(x * .27 + z * .41))
+	for (const front of [true, false]) {
+		const span = front ? w : d
+		const columns = Math.round(span / (tall ? 2.03 : 3.02))
 		const gap = span / (columns + .4)
-		for (const side of [-1, 1]) {
-			for (let col = 0; col < columns; col++) {
-				const along = (col - (columns - 1) / 2) * gap
-				const cx = alongX ? x + along : x + side * (w / 2 + .025)
-				const cz = alongX ? z + side * (d / 2 + .025) : z + along
-				const width = gap * (tall ? .83 : .59)
-				const panel = (color, y, height, wide = width, depth = .14) =>
-					batch.box(color, cx, y, cz, alongX ? wide : depth, height, alongX ? depth : wide)
-				if (tall) panel(trim, h / 2, h - 2, width + .16, .08)
-				else panel('#344859', 1.73, 2.26)
-				for (let floor = 0; floor < floors; floor++) {
-					const chance = random()
-					const pane = chance < .14 ? '#d4a282' : chance < .61 ? glass : '#355665'
-					panel(pane, 4.43 + floor * pitch, tall ? 2.16 : 1.46)
-				}
+		const width = gap * (tall ? .83 : .59)
+		for (const side of [-1, 1]) for (let col = 0; col < columns; col++) {
+			const along = (col - (columns - 1) / 2) * gap, edge = side * ((front ? d : w) / 2 + .025)
+			const cx = x + (front ? along : edge), cz = z + (front ? edge : along)
+			const panel = (target, color, y, height, wide = width, depth = .14) =>
+				target.box(color, cx, y, cz, front ? wide : depth, height, front ? depth : wide)
+			if (tall) panel(batch, trim, h / 2, h - 2, width + .16, .08)
+			else panel(batch, '#344859', 1.73, 2.26)
+			for (let i = 0; i < floors; i++) {
+				const chance = random(), lit = chance < occupancy
+				const pane = lit ? chance < .055 ? '#bfe8ff' : '#ffcb89' : chance < .61 ? glass : '#355665'
+				panel(lit ? lights : batch, pane, 4.43 + i * pitch, tall ? 2.16 : 1.46)
 			}
 		}
 	}

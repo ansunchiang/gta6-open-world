@@ -13,14 +13,45 @@ export function radialTexture() {
 	})
 }
 
+export function createRoadGlow(scene, fixtures) {
+	const material = new T.MeshBasicMaterial({map: radialTexture(), transparent: true,
+		depthWrite: false, blending: T.AdditiveBlending})
+	const limit = fixtures.length + 144
+	const mesh = new T.InstancedMesh(new T.PlaneGeometry().rotateX(-Math.PI / 2), material, limit)
+	mesh.frustumCulled = false
+	scene.add(mesh)
+	const matrix = new T.Matrix4(), scale = new T.Vector3(), tint = new T.Color()
+	function place(i, x, z, width, length, color, y = .02, yaw = 0) {
+		matrix.makeRotationY(yaw).scale(scale.set(width, 1, length)).setPosition(x, y, z)
+		mesh.setMatrixAt(i, matrix)
+		mesh.setColorAt(i, tint.set(color))
+	}
+	fixtures.forEach((entry, i) => place(i, ...entry))
+	return (cars, dark) => {
+		mesh.visible = dark > .015
+		if (!mesh.visible) return
+		let i = fixtures.length
+		for (const car of cars) {
+			if (i >= limit) break
+			if (car.exploded || car.type === 'boat' || (car.mode === 'parked' && !car.claimed)) continue
+			const front = offset(car, 6.9), rear = offset(car, -2.7)
+			place(i++, front.x, front.z, 4.3, 10, '#ffebc4', .02, -car.heading)
+			place(i++, rear.x, rear.z, 3.2, 3.7, '#ff3355', .02, -car.heading)
+		}
+		mesh.count = i
+		material.opacity = .72 * dark
+		mesh.instanceMatrix.needsUpdate = mesh.instanceColor.needsUpdate = true
+	}
+}
+
 export function createEffects(scene) {
 	const random = createRandom(4412)
 	const cube = new T.BoxGeometry()
 	const pool = []
-	const bank = (count, create) => Array.from({length: count}, () => {
+	const bank = (length, create) => Array.from({length}, () => {
 		const node = create()
-		node.visible = false
 		pool.push(node)
+		node.visible = false
 		return node
 	})
 	const meshBank = (count, shape, material) => bank(count, () => addMesh(scene, shape, material, 0, 0, 0, false))
@@ -30,8 +61,8 @@ export function createEffects(scene) {
 	const flashes = bank(8, () => sprite(scene, {map: radialTexture(), color: '#ffe299', blending: T.AdditiveBlending}))
 	let skidDelay = 0
 	function emit(items, x, y, z, life) {
-		const node = items.shift()
-		items.push(node)
+		const node = items[0]
+		items.push(items.shift())
 		node.visible = true
 		node.position.set(x, y, z)
 		node.userData.life = life
@@ -68,13 +99,12 @@ export function createEffects(scene) {
 		update(dt) {
 			skidDelay -= dt
 			for (const node of pool) {
-				if (!node.visible) continue
-				const state = node.userData
-				if ((state.life -= dt) <= 0) node.visible = false
-				if (!state.drift) continue
-				node.position.addScaledVector(state.drift, dt)
+				const data = node.userData
+				if (!node.visible || (data.life -= dt) <= 0) { node.visible = false; continue }
+				if (!data.drift) continue
+				node.position.addScaledVector(data.drift, dt)
 				node.position.y = Math.max(.045, node.position.y)
-				state.drift.y -= 15 * dt
+				data.drift.y -= 15 * dt
 			}
 		},
 		clear() { for (const node of pool) node.visible = false },
@@ -94,7 +124,7 @@ export function createSirenGlow(scene) {
 		const pulse = .35 + .65 * Math.abs(Math.sin(time * 11 + car.phase + side))
 		const {x, z} = offset(car, 0, side * .4)
 		glow.position.set(x, 1.82, z)
-		glow.material.opacity = pulse
+		glow.material.opacity = pulse * .8
 		glow.scale.setScalar(1.1 + pulse * 2.6)
 	})
 }
